@@ -1,5 +1,6 @@
 import "./app.css";
 
+import { createRequestId } from "./lib/create-request-id";
 import { decompressGzip, isGzipFileName } from "./lib/decompress";
 import type { WorkerToMainMessage } from "./worker/messages";
 import {
@@ -81,7 +82,7 @@ function waitForConversion(worker: Worker, requestId: string): Promise<Uint8Arra
 
 async function convertFileToPdf(file: File): Promise<Uint8Array> {
   const postScript = await readPostScriptBytes(file);
-  const requestId = crypto.randomUUID();
+  const requestId = createRequestId();
   const worker = createConvertWorker();
 
   worker.postMessage(
