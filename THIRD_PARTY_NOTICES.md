@@ -7,7 +7,7 @@
 | 項目 | 内容 |
 | --- | --- |
 | ライセンス | GNU Affero General Public License v3.0（AGPL-3.0）および Artifex Software, Inc. による商用ライセンス（デュアルライセンス） |
-| 入手元 | 後続作業で記載 |
+| 入手元 | npm パッケージ [`ghostscript-wasm-esm`](https://www.npmjs.com/package/ghostscript-wasm-esm) 1.0.1（[sharevb/ghostscript-wasm-esm](https://github.com/sharevb/ghostscript-wasm-esm)） |
 
 ## pdf.js
 

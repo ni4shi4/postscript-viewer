@@ -25,6 +25,7 @@
     "!(package-lock).json": "oxfmt --check"
   },
   "dependencies": {
+    "ghostscript-wasm-esm": "1.0.1",
     "pako": "3.0.3",
     "pdfjs-dist": "6.5.438"
   },

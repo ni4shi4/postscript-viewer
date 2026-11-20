@@ -1,18 +1,30 @@
 /**
- * Place Ghostscript WASM (gs.wasm) into public/gs.wasm for static serving.
- *
- * Candidate npm packages (choose in a follow-up commit; do not add deps here):
- * - @jspawn/ghostscript-wasm (v0.0.2, 2022-08)
- * - ghostscript-wasm-esm (v1.0.1, 2025-11, ESM + TypeScript types)
- *
- * After wiring a package, copy the wasm artifact from the build you actually ship
- * and re-measure file size: raw, gzip, and brotli. Workers static assets cap a
- * single file at 25 MiB (an older gs.wasm was ~15.4 MiB raw; confirm per build).
- *
- * This script is a stub until fetch logic is implemented.
+ * Copy Ghostscript WASM (gs.wasm) from ghostscript-wasm-esm into public/gs.wasm.
  */
 
-console.error(
-  "scripts/fetch-gs-wasm.mjs: not implemented — wasm fetch and copy to public/gs.wasm is pending",
-);
-process.exit(1);
+import { createRequire } from "node:module";
+import { copyFile, mkdir, stat } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+/** Cloudflare Workers static asset limit per file (25 MiB). */
+const WORKERS_STATIC_ASSET_MAX_BYTES = 25 * 1024 * 1024;
+
+const require = createRequire(import.meta.url);
+const packageRoot = path.dirname(require.resolve("ghostscript-wasm-esm/package.json"));
+const sourceWasm = path.join(packageRoot, "gs.wasm");
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const destWasm = path.join(repoRoot, "public", "gs.wasm");
+
+const { size } = await stat(sourceWasm);
+
+if (size > WORKERS_STATIC_ASSET_MAX_BYTES) {
+  console.error(`gs.wasm is ${size} bytes (limit ${WORKERS_STATIC_ASSET_MAX_BYTES}); not copying`);
+  process.exit(1);
+}
+
+await mkdir(path.dirname(destWasm), { recursive: true });
+await copyFile(sourceWasm, destWasm);
+
+console.log(size);

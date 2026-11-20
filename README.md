@@ -20,6 +20,16 @@
 
 コミットは、asdf の shims が `PATH` に通っている WSL 上のシェルで行ってください。Windows 側の git / Node.js / npm は使わないでください。
 
+## gs.wasm サイズ（`ghostscript-wasm-esm` 1.0.1）
+
+Ghostscript WASM は npm 依存 `ghostscript-wasm-esm` から `npm run fetch:wasm` で `public/gs.wasm` に配置する。Cloudflare Workers の静的アセットは 1 ファイル 25 MiB まで。
+
+| 形式 | バイト数 |
+| --- | ---: |
+| raw | 16177271 |
+| gzip (`gzip -9`) | 11212272 |
+| brotli（Node `zlib.brotliCompressSync`、quality 11） | 10649239 |
+
 ## ライセンス
 
 本リポジトリは [GNU Affero General Public License v3.0](LICENSE)（AGPL-3.0）の下で公開されています。
