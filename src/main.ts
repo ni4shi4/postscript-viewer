@@ -1,7 +1,7 @@
 import "./app.css";
 
 import { createRequestId } from "./lib/create-request-id";
-import { decompressGzip, isGzipFileName } from "./lib/decompress";
+import { NotGzipError, decompressGzip, isGzipFileName } from "./lib/decompress";
 import type { WorkerToMainMessage } from "./worker/messages";
 import {
   presentConversionError,
@@ -98,8 +98,22 @@ async function convertFileToPdf(file: File): Promise<Uint8Array> {
   return waitForConversion(worker, requestId);
 }
 
+function userMessageForNotGzipError(): string {
+  return "gzip 形式ではありません。.gz ファイルは gzip 圧縮された PostScript を選んでください";
+}
+
+function userMessageFromError(err: Error): string {
+  return err.message;
+}
+
 function messageFromUnknownError(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  if (err instanceof NotGzipError) {
+    return userMessageForNotGzipError();
+  }
+  if (err instanceof Error) {
+    return userMessageFromError(err);
+  }
+  return String(err);
 }
 
 async function convertAndDisplay(file: File): Promise<void> {

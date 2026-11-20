@@ -28,6 +28,8 @@
 4. 小さな `.ps` ファイルを選択する（ページ内のファイル入力）。変換が成功すると PDF が iframe に表示される
 5. `.ps.gz` でも同様に選択して表示できること
 
+`.ps.gz` の拡張子でも中身が gzip 形式でない場合、および zlib 形式（gzip マジックバイト `0x1f 0x8b` を持たない圧縮）は拒否されます。gzip で圧縮した PostScript を選んでください。
+
 ## gs.wasm サイズ（`ghostscript-wasm-esm` 1.0.1）
 
 Ghostscript WASM は npm 依存 `ghostscript-wasm-esm` から `npm run fetch:wasm` で `public/gs.wasm` に配置する。Cloudflare Workers の静的アセットは 1 ファイル 25 MiB まで。

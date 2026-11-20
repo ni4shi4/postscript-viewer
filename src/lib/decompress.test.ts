@@ -1,10 +1,9 @@
 import { gzip } from "pako";
 import { describe, expect, it } from "vitest";
 
-import { decompressGzip, isGzipFileName } from "./decompress";
+import { NotGzipError, decompressGzip, isGzipFileName } from "./decompress";
 
 const POSTSCRIPT_HEADER = "%!PS-Adobe-3.0\n";
-const NOT_GZIP_MESSAGE = "File is not in gzip format";
 
 describe("isGzipFileName", () => {
   it("detects .gz suffix case-insensitively", () => {
@@ -25,25 +24,20 @@ describe("decompressGzip", () => {
 
   it("rejects PostScript bytes without gzip magic", () => {
     const postscript = new TextEncoder().encode(POSTSCRIPT_HEADER);
-    expect(() => decompressGzip(postscript)).toThrow(NOT_GZIP_MESSAGE);
+    expect(() => decompressGzip(postscript)).toThrow(NotGzipError);
   });
 
-  it("rejects empty input", () => {
-    expect(() => decompressGzip(new Uint8Array(0))).toThrow(NOT_GZIP_MESSAGE);
-  });
-
-  it("rejects single-byte input", () => {
-    expect(() => decompressGzip(new Uint8Array([0x1f]))).toThrow(NOT_GZIP_MESSAGE);
+  it.each([
+    { label: "empty input", data: new Uint8Array(0) },
+    { label: "single-byte input", data: new Uint8Array([0x1f]) },
+  ])("rejects $label", ({ data }) => {
+    expect(() => decompressGzip(data)).toThrow(NotGzipError);
   });
 
   it("does not mask pako errors when gzip magic is present", () => {
     const corruptGzip = new Uint8Array([0x1f, 0x8b, 0x00, 0x00]);
-    expect(() => decompressGzip(corruptGzip)).toThrow();
-    try {
-      decompressGzip(corruptGzip);
-    } catch (error) {
-      expect(error).toBeInstanceOf(Error);
-      expect((error as Error).message).not.toBe(NOT_GZIP_MESSAGE);
-    }
+    const act = () => decompressGzip(corruptGzip);
+    expect(act).toThrow(Error);
+    expect(act).not.toThrow(NotGzipError);
   });
 });
