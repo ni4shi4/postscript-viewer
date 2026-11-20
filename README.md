@@ -18,6 +18,14 @@
 6. `npm run lint`
 7. `npm run format`
 
+## ブラウザでの変換確認（W2）
+
+1. `npm run fetch:wasm` で `public/gs.wasm` が存在することを確認する
+2. `npm run dev -- --host` で Vite 開発サーバーを起動する
+3. Windows 側のブラウザから表示された URL（例: `http://localhost:5173`）を開く
+4. 小さな `.ps` ファイルを選択する（ページ内のファイル入力）。変換が成功すると PDF が iframe に表示される
+5. `.ps.gz` でも同様に選択して表示できること
+
 コミットは、asdf の shims が `PATH` に通っている WSL 上のシェルで行ってください。Windows 側の git / Node.js / npm は使わないでください。
 
 ## gs.wasm サイズ（`ghostscript-wasm-esm` 1.0.1）
