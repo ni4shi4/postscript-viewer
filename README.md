@@ -19,9 +19,3 @@
 ## ライセンス
 
 本リポジトリは [GNU Affero General Public License v3.0](LICENSE)（AGPL-3.0）の下で公開されています。
-
-## ソースコード
-
-ソースは次のリポジトリで入手できます（`<owner>` を実際の GitHub ユーザーまたは組織名に置き換えてください）:
-
-`https://github.com/<owner>/postscript-viewer`
