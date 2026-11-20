@@ -12,10 +12,10 @@
 
 | 層 | パス | 役割 |
 | --- | --- | --- |
-| Application core | `src/core/` | ドメインの値と関数（今回は `domain/` の gzip 展開のみ） |
-| Driving adapters | `src/adapters/driving/` | UI など、外部から core を駆動する側（`dom/viewer-ui.ts`） |
-| Driven adapters | `src/adapters/driven/` | core が呼ぶ外部（`postscript-converter/`：Worker・Ghostscript WASM 変換） |
-| Composition root | `src/main.ts` | 組み立てのみ（各層を import して配線する） |
+| Application core | `src/core/` | `domain/`（値・エラー）、`ports/`（インターフェース）、`usecases/`（閲覧フロー）、`state/`（`ViewerState` とストア） |
+| Driving adapters | `src/adapters/driving/` | UI など、外部から core を駆動する側（`dom/viewer-ui.ts`：`ViewerState` を描画し primary port へ橋渡し） |
+| Driven adapters | `src/adapters/driven/` | secondary port の実装（`postscript-converter/`：Worker・Ghostscript WASM、`pdf-viewer-iframe/`：iframe と Blob URL） |
+| Composition root | `src/main.ts` | 組み立てのみ（アダプタ生成・ユースケースへの注入・DOM UI 起動） |
 
 **依存規則（`src/main.ts` を除く）**
 
