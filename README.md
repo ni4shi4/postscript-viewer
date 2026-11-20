@@ -15,6 +15,7 @@
 3. `npm run fetch:wasm`
 4. `npm run dev`（開発サーバー）
 5. `npm run build`（本番ビルド）
+6. `npm run lint`
 
 ## ライセンス
 
