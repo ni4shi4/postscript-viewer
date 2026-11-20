@@ -11,12 +11,14 @@
 ## 開発手順
 
 1. [asdf](https://asdf-vm.com/) で `.tool-versions` に記載の Node.js を導入する
-2. `npm install`
+2. `npm install`（`prepare` が実行され、[Husky](https://typicode.github.io/husky/) による pre-commit フックが有効になる）
 3. `npm run fetch:wasm`
 4. `npm run dev`（開発サーバー）
 5. `npm run build`（本番ビルド）
 6. `npm run lint`
 7. `npm run format`
+
+コミットは、asdf の shims が `PATH` に通っている WSL 上のシェルで行ってください。Windows 側の git / Node.js / npm は使わないでください。
 
 ## ライセンス
 

@@ -16,7 +16,13 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
-    "format:check": "oxfmt --check"
+    "format:check": "oxfmt --check",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,mjs}": "oxlint",
+    "*.{ts,mjs,html,css}": "oxfmt --check",
+    "!(package-lock).json": "oxfmt --check"
   },
   "dependencies": {
     "pako": "3.0.3",
@@ -24,6 +30,8 @@
   },
   "devDependencies": {
     "@types/pako": "2.0.4",
+    "husky": "9.1.7",
+    "lint-staged": "17.6.1",
     "oxfmt": "0.79.0",
     "oxlint": "1.94.0",
     "typescript": "7.0.2",
