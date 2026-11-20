@@ -20,6 +20,23 @@
 6. `npm run build`（本番ビルド）
 7. 品質チェック: `npm run lint`、`npm run format:check`（自動整形は `npm run format`）
 
+### Large E2E テスト（Playwright）
+
+実ブラウザ（Chromium）と `public/gs.wasm` を使い、ビルド済みプレビュー上で PostScript 閲覧の回帰を検知します。
+
+1. `npm run fetch:wasm` で `public/gs.wasm` を用意する
+2. WSL2（Ubuntu）上で Chromium 用ブラウザを取得する（初回のみ）:
+
+   ```bash
+   npx playwright install chromium
+   ```
+
+   依存ライブラリが足りない場合は、Playwright が表示する `npx playwright install-deps chromium`（`sudo` が必要）を実行する。ディストリビューションによっては `libnss3`、`libatk-bridge2.0-0`、`libxkbcommon0` などが必要になる。
+
+3. `npm run test:large`（内部で `vite build` のあと `vite preview` を起動してテストする）
+
+`test-results/` と `playwright-report/` は生成物のため Git には含めません。
+
 ## ブラウザでの変換確認（W2）
 
 1. `npm run fetch:wasm` で `public/gs.wasm` が存在することを確認する

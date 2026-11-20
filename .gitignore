@@ -4,3 +4,5 @@ public/gs.wasm
 .env*
 .dev.vars
 .wrangler/
+test-results/
+playwright-report/
