@@ -10,7 +10,7 @@
 
 ## 開発手順
 
-開発・ビルド・コミットは、asdf の shims が `PATH` に通っている **WSL** 上のシェルで行ってください。Windows 側の git / Node.js / npm は使わないでください。
+開発・ビルド・コミットは、Linux 環境で asdf の shims が `PATH` に通っているシェルで行ってください。Node.js は `.tool-versions` に従い、`engines` の要件は 22.13.0 以上です。
 
 1. [asdf](https://asdf-vm.com/) で `.tool-versions` に記載の Node.js（22.13.0 以上）を導入する
 2. リポジトリ直下で `npm ci`（`prepare` が実行され、[Husky](https://typicode.github.io/husky/) による pre-commit フックが有効になる）
@@ -24,7 +24,7 @@
 
 1. `npm run fetch:wasm` で `public/gs.wasm` が存在することを確認する
 2. `npm run dev -- --host` で Vite 開発サーバーを起動する
-3. Windows 側のブラウザから表示された URL（例: `http://localhost:5173`）を開く
+3. 表示された URL（例: `http://localhost:5173`）をブラウザで開く
 4. 小さな `.ps` ファイルを選択する（ページ内のファイル入力）。変換が成功すると PDF が iframe に表示される
 5. `.ps.gz` でも同様に選択して表示できること
 
