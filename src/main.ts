@@ -44,10 +44,7 @@ function createConvertWorker(): Worker {
   });
 }
 
-function waitForConversion(
-  worker: Worker,
-  requestId: string,
-): Promise<Uint8Array> {
+function waitForConversion(worker: Worker, requestId: string): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     const onMessage = (event: MessageEvent<WorkerToMainMessage>) => {
       const message = event.data;

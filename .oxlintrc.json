@@ -4,12 +4,7 @@
     "correctness": "error",
     "suspicious": "error"
   },
-  "ignorePatterns": [
-    "dist/**",
-    "node_modules/**",
-    "public/**",
-    "PLAN.md"
-  ],
+  "ignorePatterns": ["dist/**", "node_modules/**", "public/**", "PLAN.md"],
   "overrides": [
     {
       "files": ["scripts/**/*.mjs", "vite.config.ts"],
@@ -21,6 +16,10 @@
       "files": ["src/worker/**/*.ts"],
       "env": {
         "worker": true
+      },
+      "rules": {
+        // Dedicated Worker postMessage の第2引数は transfer list。Window の targetOrigin ではないため誤検知。
+        "unicorn/require-post-message-target-origin": "off"
       }
     },
     {

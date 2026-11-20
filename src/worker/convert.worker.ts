@@ -1,8 +1,4 @@
-import type {
-  ConvertFailureMessage,
-  ConvertSuccessMessage,
-  MainToWorkerMessage,
-} from "./messages";
+import type { ConvertFailureMessage, ConvertSuccessMessage, MainToWorkerMessage } from "./messages";
 
 export const GS_PDF_DEVICE = "-sDEVICE=pdfwrite" as const;
 export const GS_NO_PAUSE = "-dNOPAUSE" as const;
@@ -10,9 +6,7 @@ export const GS_BATCH = "-dBATCH" as const;
 
 const GS_PDFWRITE_ARGS = [GS_PDF_DEVICE, GS_NO_PAUSE, GS_BATCH] as const;
 
-async function convertPostScriptToPdf(
-  _postScript: Uint8Array,
-): Promise<Uint8Array> {
+async function convertPostScriptToPdf(_postScript: Uint8Array): Promise<Uint8Array> {
   void GS_PDFWRITE_ARGS;
   // TODO: Load Ghostscript WASM, write input to the virtual FS, and run
   //       gs with -sOutputFile=output.pdf input.ps using GS_PDFWRITE_ARGS.
