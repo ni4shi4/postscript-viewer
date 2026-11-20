@@ -13,7 +13,28 @@
       }
     },
     {
-      "files": ["src/worker/**/*.ts"],
+      "files": ["src/core/**/*.ts"],
+      "env": {
+        "node": true
+      },
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          "ghostscript-wasm-esm",
+          {
+            "patterns": [
+              {
+                "regex": "(?:^|/)adapters/",
+                "message": "core must not import adapters"
+              }
+            ]
+          }
+        ],
+        "no-restricted-globals": ["error", "window", "document", "Worker"]
+      }
+    },
+    {
+      "files": ["src/adapters/driven/postscript-converter/convert.worker.ts"],
       "env": {
         "worker": true
       },
@@ -24,7 +45,10 @@
     },
     {
       "files": ["src/**/*.ts"],
-      "excludeFiles": ["src/worker/**/*.ts"],
+      "excludeFiles": [
+        "src/core/**/*.ts",
+        "src/adapters/driven/postscript-converter/convert.worker.ts"
+      ],
       "env": {
         "browser": true
       }

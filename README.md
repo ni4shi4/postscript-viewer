@@ -8,6 +8,23 @@
 2. Web Worker 内で Ghostscript（WASM）が PDF に変換する
 3. 出力した PDF を iframe で表示する
 
+### ソース構成（Hexagonal / Ports and Adapters）
+
+| 層 | パス | 役割 |
+| --- | --- | --- |
+| Application core | `src/core/` | ドメインの値と関数（今回は `domain/` の gzip 展開のみ） |
+| Driving adapters | `src/adapters/driving/` | UI など、外部から core を駆動する側（`dom/viewer-ui.ts`） |
+| Driven adapters | `src/adapters/driven/` | core が呼ぶ外部（`postscript-converter/`：Worker・Ghostscript WASM 変換） |
+| Composition root | `src/main.ts` | 組み立てのみ（各層を import して配線する） |
+
+**依存規則（`src/main.ts` を除く）**
+
+- `src/core/**` は `src/adapters/**` を import しない。npm 依存は `pako` のみ（DOM・`Worker`・`ghostscript-wasm-esm` も不可）
+- `src/adapters/driving/**` と `src/adapters/driven/**` は互いを import しない
+- 同じ側の異なるアダプタディレクトリ同士も import しない
+
+`npm run check:deps`（`npm run lint` にも含まれる）と、`.oxlintrc.json` の override で上記を検査します。
+
 ## 開発手順
 
 開発・ビルド・コミットは、Linux 環境で asdf の shims が `PATH` に通っているシェルで行ってください。Node.js は `.tool-versions` に従い、`engines` の要件は 22.13.0 以上です。

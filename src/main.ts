@@ -1,15 +1,15 @@
 import "./app.css";
 
-import { createRequestId } from "./lib/create-request-id";
-import { NotGzipError, decompressGzip, isGzipFileName } from "./lib/decompress";
-import type { WorkerToMainMessage } from "./worker/messages";
+import { createRequestId } from "./adapters/driven/postscript-converter/create-request-id";
+import { NotGzipError, decompressGzip, isGzipFileName } from "./core/domain/decompress";
+import type { WorkerToMainMessage } from "./adapters/driven/postscript-converter/messages";
 import {
   presentConversionError,
   presentConverting,
   presentPdfInFrame,
   queryViewerDom,
   resetFileInputSelection,
-} from "./ui/viewer-ui";
+} from "./adapters/driving/dom/viewer-ui";
 
 const viewerDom = queryViewerDom();
 const filePicker = viewerDom.fileInput;
@@ -46,9 +46,12 @@ async function readPostScriptBytes(file: File): Promise<Uint8Array> {
 }
 
 function createConvertWorker(): Worker {
-  return new Worker(new URL("./worker/convert.worker.ts", import.meta.url), {
-    type: "module",
-  });
+  return new Worker(
+    new URL("./adapters/driven/postscript-converter/convert.worker.ts", import.meta.url),
+    {
+      type: "module",
+    },
+  );
 }
 
 function waitForConversion(worker: Worker, requestId: string): Promise<Uint8Array> {

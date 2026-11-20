@@ -1,4 +1,4 @@
-import { convertPostScriptToPdf } from "../lib/convert-postscript-to-pdf";
+import { convertPostScriptToPdf } from "./convert-postscript-to-pdf";
 import type { ConvertFailureMessage, ConvertSuccessMessage, MainToWorkerMessage } from "./messages";
 
 function postFailure(id: string, error: string): void {
