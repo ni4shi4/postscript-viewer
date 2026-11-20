@@ -1,6 +1,7 @@
 import createModule from "ghostscript-wasm-esm";
 
 import { GS_WASM_PATH } from "./gs-wasm-path";
+import { instantiateWasmWithStreamingFallback } from "./instantiate-wasm-with-fallback";
 
 export type GhostscriptFs = {
   writeFile(path: string, data: Uint8Array): void;
@@ -13,9 +14,34 @@ export type GhostscriptModule = {
   FS: GhostscriptFs;
 };
 
+type InstantiateWasmHook = (
+  imports: WebAssembly.Imports,
+  receiveInstance: (instance: WebAssembly.Instance) => void,
+) => WebAssembly.Exports | Record<string, never> | false;
+
 export type GhostscriptModuleOverrides = {
   locateFile?: (file: string, scriptDirectory: string) => string;
+  instantiateWasm?: InstantiateWasmHook;
 };
+
+const GS_WASM_FILE = "gs.wasm" as const;
+
+function createInstantiateWasmHook(
+  locateFile: (file: string, scriptDirectory: string) => string,
+  onWasmLoadFailed: (error: unknown) => void,
+): InstantiateWasmHook {
+  return (
+    imports: WebAssembly.Imports,
+    receiveInstance: (instance: WebAssembly.Instance) => void,
+  ) => {
+    const wasmUrl = locateFile(GS_WASM_FILE, "");
+    void instantiateWasmWithStreamingFallback(wasmUrl, imports).then(
+      receiveInstance,
+      onWasmLoadFailed,
+    );
+    return {};
+  };
+}
 
 export function gsWasmLocateFile(file: string, _scriptDirectory: string): string {
   if (file.endsWith(".wasm")) {
@@ -31,10 +57,24 @@ export function gsWasmLocateFile(file: string, _scriptDirectory: string): string
 export async function loadGhostscriptModule(
   moduleOverrides?: GhostscriptModuleOverrides,
 ): Promise<GhostscriptModule> {
-  const module = await createModule({
-    ...moduleOverrides,
-    locateFile: moduleOverrides?.locateFile ?? gsWasmLocateFile,
+  const locateFile = moduleOverrides?.locateFile ?? gsWasmLocateFile;
+
+  let rejectWasmLoad!: (error: unknown) => void;
+  const wasmLoadFailed = new Promise<never>((_, reject) => {
+    rejectWasmLoad = reject;
   });
+
+  const instantiateWasm =
+    moduleOverrides?.instantiateWasm ?? createInstantiateWasmHook(locateFile, rejectWasmLoad);
+
+  const module = await Promise.race([
+    createModule({
+      ...moduleOverrides,
+      locateFile,
+      instantiateWasm,
+    }),
+    wasmLoadFailed,
+  ]);
   return module as GhostscriptModule;
 }
 

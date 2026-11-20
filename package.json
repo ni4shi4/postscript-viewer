@@ -17,6 +17,7 @@
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
+    "test": "vitest run",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -26,8 +27,7 @@
   },
   "dependencies": {
     "ghostscript-wasm-esm": "1.0.1",
-    "pako": "3.0.3",
-    "pdfjs-dist": "6.5.438"
+    "pako": "3.0.3"
   },
   "devDependencies": {
     "@types/pako": "2.0.4",
@@ -36,6 +36,7 @@
     "oxfmt": "0.79.0",
     "oxlint": "1.94.0",
     "typescript": "7.0.2",
-    "vite": "8.3.8"
+    "vite": "8.3.8",
+    "vitest": "5.1.1"
   }
 }
