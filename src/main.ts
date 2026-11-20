@@ -1,15 +1,17 @@
+import "./app.css";
+
 import { decompressGzip, isGzipFileName } from "./lib/decompress";
 import type { WorkerToMainMessage } from "./worker/messages";
+import {
+  presentConversionError,
+  presentConverting,
+  presentPdfInFrame,
+  queryViewerDom,
+  resetFileInputSelection,
+} from "./ui/viewer-ui";
 
-const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]');
-const viewerFrame = document.querySelector<HTMLIFrameElement>("iframe");
-
-if (fileInput === null || viewerFrame === null) {
-  throw new Error("Required page elements are missing");
-}
-
-const filePicker = fileInput;
-const pdfFrame = viewerFrame;
+const viewerDom = queryViewerDom();
+const filePicker = viewerDom.fileInput;
 
 let activePdfObjectUrl: string | undefined;
 
@@ -21,13 +23,17 @@ function revokeActivePdfObjectUrl(): void {
   activePdfObjectUrl = undefined;
 }
 
-function showPdfInFrame(pdf: Uint8Array): void {
-  revokeActivePdfObjectUrl();
+function createPdfObjectUrl(pdf: Uint8Array): string {
   const blob = new Blob([Uint8Array.from(pdf)], {
     type: "application/pdf",
   });
-  activePdfObjectUrl = URL.createObjectURL(blob);
-  pdfFrame.src = activePdfObjectUrl;
+  return URL.createObjectURL(blob);
+}
+
+function showPdfInFrame(pdf: Uint8Array): void {
+  revokeActivePdfObjectUrl();
+  activePdfObjectUrl = createPdfObjectUrl(pdf);
+  presentPdfInFrame(viewerDom, activePdfObjectUrl);
 }
 
 async function readPostScriptBytes(file: File): Promise<Uint8Array> {
@@ -73,7 +79,7 @@ function waitForConversion(worker: Worker, requestId: string): Promise<Uint8Arra
   });
 }
 
-async function convertAndDisplay(file: File): Promise<void> {
+async function convertFileToPdf(file: File): Promise<Uint8Array> {
   const postScript = await readPostScriptBytes(file);
   const requestId = crypto.randomUUID();
   const worker = createConvertWorker();
@@ -88,8 +94,26 @@ async function convertAndDisplay(file: File): Promise<void> {
     [postScript.buffer],
   );
 
-  const pdf = await waitForConversion(worker, requestId);
-  showPdfInFrame(pdf);
+  return waitForConversion(worker, requestId);
+}
+
+function messageFromUnknownError(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+async function convertAndDisplay(file: File): Promise<void> {
+  revokeActivePdfObjectUrl();
+  presentConverting(viewerDom);
+
+  try {
+    const pdf = await convertFileToPdf(file);
+    showPdfInFrame(pdf);
+  } catch (err: unknown) {
+    revokeActivePdfObjectUrl();
+    const message = messageFromUnknownError(err);
+    presentConversionError(viewerDom, message);
+    console.error(message);
+  }
 }
 
 filePicker.addEventListener("change", () => {
@@ -97,8 +121,7 @@ filePicker.addEventListener("change", () => {
   if (!file) {
     return;
   }
-  void convertAndDisplay(file).catch((err: unknown) => {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(message);
+  void convertAndDisplay(file).finally(() => {
+    resetFileInputSelection(filePicker);
   });
 });

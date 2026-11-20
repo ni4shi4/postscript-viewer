@@ -6,8 +6,16 @@
     <title>postscript-viewer</title>
   </head>
   <body>
-    <input type="file" accept=".ps,.gz" />
-    <iframe></iframe>
+    <header class="toolbar">
+      <label class="file-picker">
+        <span>PostScript ファイル（.ps / .ps.gz）</span>
+        <input type="file" accept=".ps,.gz" />
+      </label>
+      <p class="viewer-status" data-viewer-status role="status" aria-live="polite" hidden></p>
+    </header>
+    <main class="viewer">
+      <iframe title="変換された PDF" hidden></iframe>
+    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

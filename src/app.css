@@ -1,0 +1,46 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+}
+
+.viewer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.viewer iframe {
+  flex: 1;
+  border: 0;
+  width: 100%;
+}
+
+.viewer-status {
+  margin: 0.5rem 0 0;
+}
+
+.viewer-status--progress {
+  color: CanvasText;
+}
+
+.viewer-status--error {
+  color: #b00020;
+}
+
+@media (prefers-color-scheme: dark) {
+  .viewer-status--error {
+    color: #ff6b6b;
+  }
+}
