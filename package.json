@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite",
     "fetch:wasm": "node scripts/fetch-gs-wasm.mjs",
+    "build:wasm": "node scripts/build-gs-wasm.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "preview:e2e": "vite preview --config vite.config.e2e-preview.ts",
