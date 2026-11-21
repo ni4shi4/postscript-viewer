@@ -7,6 +7,7 @@ export type ViewerStore = {
   beginConverting(id: string, fileName: string, progress: ConversionProgress): void;
   updateConvertingProgress(id: string, progress: ConversionProgress): void;
   setReady(id: string): void;
+  setRestoredReady(id: string, fileName: string): void;
   setError(id: string, error: ViewerError): void;
   clear(): void;
 };
@@ -80,6 +81,13 @@ export function createViewerStore(): ViewerStore {
         ...viewerDocument,
         status: { kind: "ready" },
       }));
+    },
+    setRestoredReady: (id, fileName) => {
+      replaceSelectedDocument({
+        id,
+        fileName,
+        status: { kind: "ready" },
+      });
     },
     setError: (id, error) => {
       updateSelectedDocument(id, (viewerDocument) => ({

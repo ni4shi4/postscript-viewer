@@ -2,6 +2,8 @@ import { ConversionAbortedError } from "../domain/conversion-aborted";
 import { ConversionTimeoutError } from "../domain/conversion-timeout";
 import { NotGzipError, decompressGzip, isGzipFileName } from "../domain/decompress";
 import { TooLargeError, assertWithinByteLimit } from "../domain/limits";
+import type { PdfStore } from "../ports/pdf-store";
+import { createNoOpPdfStore } from "../ports/pdf-store";
 import type { PdfViewer } from "../ports/pdf-viewer";
 import type { PostScriptConverter } from "../ports/postscript-converter";
 import type { ViewerApp } from "../ports/viewer-app";
@@ -12,6 +14,7 @@ export type CreateViewerAppDeps = {
   postScriptConverter: PostScriptConverter;
   pdfViewer: PdfViewer;
   createDocumentId: () => string;
+  pdfStore?: PdfStore;
 };
 
 function viewerErrorFromUnknown(err: unknown): ViewerError {
@@ -44,9 +47,39 @@ function readPostScriptBytes(fileName: string, data: Uint8Array): Uint8Array {
   return isGzipFileName(fileName) ? readGzipPostScriptBytes(data) : readRawPostScriptBytes(data);
 }
 
+function clearPdfStore(pdfStore: PdfStore): void {
+  void pdfStore.clear().catch((err: unknown) => {
+    console.error(err);
+  });
+}
+
+async function saveReadyPdf(
+  pdfStore: PdfStore,
+  isStillActive: () => boolean,
+  entry: { fileName: string; pdf: Uint8Array },
+): Promise<void> {
+  if (!isStillActive()) {
+    return;
+  }
+  try {
+    await pdfStore.save(entry);
+    if (!isStillActive()) {
+      try {
+        await pdfStore.clear();
+      } catch (clearErr: unknown) {
+        console.error(clearErr);
+      }
+    }
+  } catch (err: unknown) {
+    console.error(err);
+  }
+}
+
 export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
   const store = createViewerStore();
+  const pdfStore = deps.pdfStore ?? createNoOpPdfStore();
   let activeDocumentId: string | undefined;
+  let activeRestoreId: string | undefined;
   let abortController: AbortController | undefined;
 
   const abortActiveConversion = (): void => {
@@ -56,15 +89,19 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
     }
   };
 
+  const isDocumentActive = (documentId: string): boolean => activeDocumentId === documentId;
+
   return {
     async openPostScript(input) {
       abortActiveConversion();
+      activeRestoreId = undefined;
 
       const documentId = deps.createDocumentId();
       activeDocumentId = documentId;
       abortController = new AbortController();
       const { signal } = abortController;
 
+      clearPdfStore(pdfStore);
       store.beginConverting(documentId, input.fileName, { kind: "started" });
       deps.pdfViewer.clear();
 
@@ -74,34 +111,63 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
           fileName: input.fileName,
           signal,
           onProgress: (progress) => {
-            if (activeDocumentId !== documentId) {
+            if (!isDocumentActive(documentId)) {
               return;
             }
             store.updateConvertingProgress(documentId, progress);
           },
         });
 
-        if (activeDocumentId !== documentId) {
+        if (!isDocumentActive(documentId)) {
           return;
         }
 
         store.setReady(documentId);
         deps.pdfViewer.show(pdf);
+        void saveReadyPdf(pdfStore, () => isDocumentActive(documentId), {
+          fileName: input.fileName,
+          pdf,
+        });
       } catch (err: unknown) {
-        if (activeDocumentId !== documentId) {
+        if (!isDocumentActive(documentId)) {
           return;
         }
         if (err instanceof ConversionAbortedError) {
           return;
         }
+        clearPdfStore(pdfStore);
         store.setError(documentId, viewerErrorFromUnknown(err));
         deps.pdfViewer.clear();
       }
     },
 
+    async restore() {
+      const restoreId = deps.createDocumentId();
+      activeRestoreId = restoreId;
+
+      const entry = await pdfStore.load();
+      if (activeRestoreId !== restoreId) {
+        return;
+      }
+      if (activeDocumentId !== undefined) {
+        activeRestoreId = undefined;
+        return;
+      }
+      if (entry === undefined) {
+        activeRestoreId = undefined;
+        return;
+      }
+
+      store.setRestoredReady(restoreId, entry.fileName);
+      deps.pdfViewer.show(entry.pdf);
+      activeRestoreId = undefined;
+    },
+
     cancel() {
       abortActiveConversion();
       activeDocumentId = undefined;
+      activeRestoreId = undefined;
+      clearPdfStore(pdfStore);
       store.clear();
       deps.pdfViewer.clear();
     },

@@ -55,6 +55,7 @@ function createFakeViewerApp(
     async openPostScript(input) {
       openCalls.push({ fileName: input.fileName, data: input.data });
     },
+    async restore() {},
     cancel() {},
     getOpenPostScriptCalls: () => openCalls,
   };

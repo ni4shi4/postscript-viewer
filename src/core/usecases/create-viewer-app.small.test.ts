@@ -7,6 +7,7 @@ import { MAX_DECOMPRESSED_POSTSCRIPT_BYTES, MAX_POSTSCRIPT_INPUT_BYTES } from ".
 import { selectedViewerDocument } from "../state/viewer-state";
 import type { ViewerState } from "../state/viewer-state";
 import { createSequentialDocumentIdFactory } from "../testing/fake-create-document-id";
+import { createFakePdfStore } from "../testing/fake-pdf-store";
 import { createFakePdfViewer } from "../testing/fake-pdf-viewer";
 import { createFakePostScriptConverter } from "../testing/fake-postscript-converter";
 import { createViewerApp } from "./create-viewer-app";
@@ -18,12 +19,14 @@ const OTHER_PDF = new Uint8Array([37, 80, 68, 70, 45, 50, 46, 48]);
 function createTestViewerApp() {
   const postScriptConverter = createFakePostScriptConverter();
   const pdfViewer = createFakePdfViewer();
+  const pdfStore = createFakePdfStore();
   const app = createViewerApp({
     postScriptConverter,
     pdfViewer,
+    pdfStore,
     createDocumentId: createSequentialDocumentIdFactory(),
   });
-  return { app, postScriptConverter, pdfViewer };
+  return { app, postScriptConverter, pdfViewer, pdfStore };
 }
 
 function selectedStatus(app: ReturnType<typeof createViewerApp>) {
@@ -324,5 +327,110 @@ describe("createViewerApp", () => {
     await ignoredOpen;
 
     expect(received).toHaveLength(lengthAfterUnsubscribe);
+  });
+
+  it("persists the converted PDF when conversion succeeds", async () => {
+    const { app, postScriptConverter, pdfStore } = createTestViewerApp();
+
+    const openPromise = app.openPostScript({
+      fileName: "sample.ps",
+      data: POSTSCRIPT_BYTES,
+    });
+    await waitForConversions(postScriptConverter, 1);
+    postScriptConverter.completeAt(0, SAMPLE_PDF);
+    await openPromise;
+
+    expect(pdfStore.getStored()).toEqual({
+      fileName: "sample.ps",
+      pdf: SAMPLE_PDF,
+    });
+  });
+
+  it("clears persisted PDF when conversion fails", async () => {
+    const { app, postScriptConverter, pdfStore } = createTestViewerApp();
+    pdfStore.setStored({ fileName: "old.ps", pdf: SAMPLE_PDF });
+
+    const openPromise = app.openPostScript({
+      fileName: "sample.ps",
+      data: POSTSCRIPT_BYTES,
+    });
+    await waitForConversions(postScriptConverter, 1);
+    postScriptConverter.failAt(0, new Error("conversion failed"));
+    await openPromise;
+
+    expect(pdfStore.getStored()).toBeUndefined();
+  });
+
+  it("restores and shows a persisted PDF", async () => {
+    const { app, pdfViewer, pdfStore } = createTestViewerApp();
+    pdfStore.setStored({ fileName: "saved.ps", pdf: SAMPLE_PDF });
+
+    await app.restore();
+
+    expect(selectedStatus(app)?.kind).toBe("ready");
+    expect(documentFileName(app)).toBe("saved.ps");
+    expect(pdfViewer.getDisplayedPdf()).toEqual(SAMPLE_PDF);
+  });
+
+  it("does nothing on restore when no PDF is persisted", async () => {
+    const { app, pdfViewer } = createTestViewerApp();
+
+    await app.restore();
+
+    expect(app.getState().selectedDocumentId).toBeUndefined();
+    expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
+  });
+
+  it("prioritizes a new conversion started during restore", async () => {
+    const { app, postScriptConverter, pdfViewer, pdfStore } = createTestViewerApp();
+    pdfStore.setStored({ fileName: "saved.ps", pdf: SAMPLE_PDF });
+
+    let releaseLoad: (() => void) | undefined;
+    const loadBlocked = new Promise<void>((resolve) => {
+      releaseLoad = resolve;
+    });
+    pdfStore.setLoadDelay(() => loadBlocked);
+
+    const restorePromise = app.restore();
+
+    const openPromise = app.openPostScript({
+      fileName: "new.ps",
+      data: POSTSCRIPT_BYTES,
+    });
+    await waitForConversions(postScriptConverter, 1);
+
+    releaseLoad!();
+    await restorePromise;
+
+    postScriptConverter.completeAt(0, OTHER_PDF);
+    await openPromise;
+
+    expect(documentFileName(app)).toBe("new.ps");
+    expect(pdfViewer.getDisplayedPdf()).toEqual(OTHER_PDF);
+  });
+
+  it("does not keep a late save after cancel", async () => {
+    const { app, postScriptConverter, pdfStore } = createTestViewerApp();
+
+    let releaseSave: (() => void) | undefined;
+    const saveBlocked = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    pdfStore.setSaveDelay(() => saveBlocked);
+
+    void app.openPostScript({
+      fileName: "sample.ps",
+      data: POSTSCRIPT_BYTES,
+    });
+    await waitForConversions(postScriptConverter, 1);
+    postScriptConverter.completeAt(0, SAMPLE_PDF);
+    await Promise.resolve();
+
+    app.cancel();
+    releaseSave!();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(pdfStore.getStored()).toBeUndefined();
   });
 });
