@@ -30,7 +30,8 @@ const previewProcesses = [];
  * @returns {ChildProcess}
  */
 function spawnPreviewServer(npmScript, port) {
-  const child = spawn("npm", ["run", npmScript, "--", "--port", String(port)], {
+  const host = new URL(previewOriginForPort(port)).hostname;
+  const child = spawn("npm", ["run", npmScript, "--", "--port", String(port), "--host", host], {
     cwd: repoRoot,
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
