@@ -1,6 +1,11 @@
 import type { ConversionProgress } from "../ports/postscript-converter";
 
-export type ViewerError = { kind: "not-gzip" } | { kind: "conversion-failed"; detail: string };
+import type { ByteLimitKind } from "../domain/limits";
+
+export type ViewerError =
+  | { kind: "not-gzip" }
+  | { kind: "too-large"; limit: ByteLimitKind }
+  | { kind: "conversion-failed"; detail: string };
 
 export type ViewerDocumentStatus =
   | { kind: "converting"; progress: ConversionProgress }

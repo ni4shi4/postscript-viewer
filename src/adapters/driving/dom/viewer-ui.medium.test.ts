@@ -168,6 +168,42 @@ describe("startViewerDomUi", () => {
     expect(status.hidden).toBe(true);
   });
 
+  it("shows the configured limit for input too-large errors", () => {
+    const app = createFakeViewerApp();
+    const dom = queryViewerDom();
+    startViewerDomUi(dom, app);
+
+    app.replaceState(
+      documentState("d1", "huge.ps", {
+        kind: "error",
+        error: { kind: "too-large", limit: "input" },
+      }),
+    );
+
+    const status = queryStatusPanel();
+    expect(status.hidden).toBe(false);
+    expect(status.textContent).toContain("32 MiB");
+    expect(status.textContent).toContain("ファイルサイズ");
+  });
+
+  it("shows the configured limit for decompressed too-large errors", () => {
+    const app = createFakeViewerApp();
+    const dom = queryViewerDom();
+    startViewerDomUi(dom, app);
+
+    app.replaceState(
+      documentState("d1", "bomb.ps.gz", {
+        kind: "error",
+        error: { kind: "too-large", limit: "decompressed" },
+      }),
+    );
+
+    const status = queryStatusPanel();
+    expect(status.hidden).toBe(false);
+    expect(status.textContent).toContain("32 MiB");
+    expect(status.textContent).toContain("展開後");
+  });
+
   it("shows a gzip-related message for not-gzip errors", () => {
     const app = createFakeViewerApp();
     const dom = queryViewerDom();

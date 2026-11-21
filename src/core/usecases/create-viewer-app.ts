@@ -1,5 +1,6 @@
 import { ConversionAbortedError } from "../domain/conversion-aborted";
 import { NotGzipError, decompressGzip, isGzipFileName } from "../domain/decompress";
+import { TooLargeError, assertWithinByteLimit } from "../domain/limits";
 import type { PdfViewer } from "../ports/pdf-viewer";
 import type { PostScriptConverter } from "../ports/postscript-converter";
 import type { ViewerApp } from "../ports/viewer-app";
@@ -16,17 +17,27 @@ function viewerErrorFromUnknown(err: unknown): ViewerError {
   if (err instanceof NotGzipError) {
     return { kind: "not-gzip" };
   }
+  if (err instanceof TooLargeError) {
+    return { kind: "too-large", limit: err.limit };
+  }
   if (err instanceof Error) {
     return { kind: "conversion-failed", detail: err.message };
   }
   return { kind: "conversion-failed", detail: String(err) };
 }
 
-async function readPostScriptBytes(fileName: string, data: Uint8Array): Promise<Uint8Array> {
-  if (isGzipFileName(fileName)) {
-    return decompressGzip(data);
-  }
+function readRawPostScriptBytes(data: Uint8Array): Uint8Array {
+  assertWithinByteLimit(data.length, "input");
   return data;
+}
+
+function readGzipPostScriptBytes(data: Uint8Array): Uint8Array {
+  assertWithinByteLimit(data.length, "input");
+  return decompressGzip(data);
+}
+
+function readPostScriptBytes(fileName: string, data: Uint8Array): Uint8Array {
+  return isGzipFileName(fileName) ? readGzipPostScriptBytes(data) : readRawPostScriptBytes(data);
 }
 
 export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
@@ -54,7 +65,7 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
       deps.pdfViewer.clear();
 
       try {
-        const postScript = await readPostScriptBytes(input.fileName, input.data);
+        const postScript = readPostScriptBytes(input.fileName, input.data);
         const pdf = await deps.postScriptConverter.convert(postScript, {
           fileName: input.fileName,
           signal,

@@ -2,6 +2,7 @@ import { gzip } from "pako";
 import { describe, expect, it } from "vitest";
 
 import { NotGzipError, decompressGzip, isGzipFileName } from "./decompress";
+import { MAX_DECOMPRESSED_POSTSCRIPT_BYTES, TooLargeError } from "./limits";
 
 const POSTSCRIPT_HEADER = "%!PS-Adobe-3.0\n";
 
@@ -39,5 +40,11 @@ describe("decompressGzip", () => {
     const act = () => decompressGzip(corruptGzip);
     expect(act).toThrow(Error);
     expect(act).not.toThrow(NotGzipError);
+  });
+
+  it("rejects gzip output that exceeds the decompressed byte limit", () => {
+    const expanded = new Uint8Array(MAX_DECOMPRESSED_POSTSCRIPT_BYTES + 1);
+    const compressed = gzip(expanded);
+    expect(() => decompressGzip(compressed)).toThrow(TooLargeError);
   });
 });

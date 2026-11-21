@@ -1,3 +1,4 @@
+import { formattedByteLimit, type ByteLimitKind } from "../../../core/domain/limits";
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import type { ViewerError, ViewerState } from "../../../core/state/viewer-state";
 import { selectedViewerDocument } from "../../../core/state/viewer-state";
@@ -42,11 +43,23 @@ function userMessageForNotGzipError(): string {
   return "gzip 形式ではありません。.gz ファイルは gzip 圧縮された PostScript を選んでください";
 }
 
-function userMessageFromViewerError(error: ViewerError): string {
-  if (error.kind === "not-gzip") {
-    return userMessageForNotGzipError();
+function userMessageForTooLargeLimit(limit: ByteLimitKind): string {
+  const formatted = formattedByteLimit(limit);
+  if (limit === "input") {
+    return `ファイルサイズが上限（${formatted}）を超えています`;
   }
-  return error.detail;
+  return `展開後のサイズが上限（${formatted}）を超えています`;
+}
+
+function userMessageFromViewerError(error: ViewerError): string {
+  switch (error.kind) {
+    case "not-gzip":
+      return userMessageForNotGzipError();
+    case "too-large":
+      return userMessageForTooLargeLimit(error.limit);
+    case "conversion-failed":
+      return error.detail;
+  }
 }
 
 function presentErrorStatus(statusPanel: HTMLParagraphElement, message: string): void {

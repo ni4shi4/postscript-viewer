@@ -2,6 +2,7 @@ import { gzip } from "pako";
 import { describe, expect, it } from "vitest";
 
 import { ConversionAbortedError } from "../domain/conversion-aborted";
+import { MAX_DECOMPRESSED_POSTSCRIPT_BYTES, MAX_POSTSCRIPT_INPUT_BYTES } from "../domain/limits";
 import { selectedViewerDocument } from "../state/viewer-state";
 import type { ViewerState } from "../state/viewer-state";
 import { createSequentialDocumentIdFactory } from "../testing/fake-create-document-id";
@@ -88,6 +89,41 @@ describe("createViewerApp", () => {
     expect(selectedStatus(app)?.kind).toBe("ready");
     expect(pdfViewer.getDisplayedPdf()).toEqual(SAMPLE_PDF);
     expect(postScriptConverter.getConversions()[0]?.postScript).toEqual(POSTSCRIPT_BYTES);
+  });
+
+  it("rejects an oversize .ps file without calling the converter", async () => {
+    const { app, postScriptConverter, pdfViewer } = createTestViewerApp();
+    const oversize = new Uint8Array(MAX_POSTSCRIPT_INPUT_BYTES + 1);
+
+    await app.openPostScript({
+      fileName: "huge.ps",
+      data: oversize,
+    });
+
+    expect(selectedStatus(app)).toEqual({
+      kind: "error",
+      error: { kind: "too-large", limit: "input" },
+    });
+    expect(postScriptConverter.getConversions()).toHaveLength(0);
+    expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
+  });
+
+  it("rejects a small gzip that expands beyond the limit without calling the converter", async () => {
+    const { app, postScriptConverter, pdfViewer } = createTestViewerApp();
+    const expanded = new Uint8Array(MAX_DECOMPRESSED_POSTSCRIPT_BYTES + 1);
+    const compressed = gzip(expanded);
+
+    await app.openPostScript({
+      fileName: "bomb.ps.gz",
+      data: compressed,
+    });
+
+    expect(selectedStatus(app)).toEqual({
+      kind: "error",
+      error: { kind: "too-large", limit: "decompressed" },
+    });
+    expect(postScriptConverter.getConversions()).toHaveLength(0);
+    expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
   });
 
   it("rejects non-gzip content under a .gz name without calling the converter", async () => {
