@@ -1,0 +1,1 @@
+- 設計・実装・レビュー時は `docs/architecture.md` と `docs/testing.md` を参照する
