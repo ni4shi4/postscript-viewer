@@ -14,21 +14,29 @@
       <div class="toolbar-intro">
         <h1>PostScript ビューア</h1>
         <p class="toolbar-intro__description">
-          ブラウザ内で PostScript（.ps / .ps.gz）を PDF
-          に変換して表示します。ファイルはサーバーへ送信されず、すべてお使いの端末上で処理されます。
+          ブラウザ内で PostScript を PDF に変換して表示します。
         </p>
+        <h2>使い方</h2>
         <ol class="toolbar-intro__steps">
-          <li>PostScript ファイルを選択する</li>
-          <li>変換が完了するまで待つ</li>
-          <li>下の画面に PDF が表示される</li>
+          <li>PostScript ファイルを選ぶ</li>
+          <li>変換が終わるまで待つ</li>
+          <li>表示された PDF を確認する</li>
         </ol>
       </div>
       <label class="file-picker">
-        <span>PostScript ファイル（.ps / .ps.gz）</span>
-        <input type="file" accept=".ps,.gz" data-testid="file-input" />
+        <span class="file-picker__label">PostScript ファイル</span>
+        <input
+          type="file"
+          accept=".ps,.gz"
+          data-testid="file-input"
+          aria-describedby="privacy-notice trust-notice"
+        />
       </label>
       <p class="viewer-file-name" data-viewer-file-name data-testid="viewer-file-name" hidden></p>
-      <p class="trust-notice" data-testid="trust-notice">
+      <p id="privacy-notice" class="privacy-notice">
+        ファイルはサーバーへ送信されず、すべてお使いの端末上で処理されます。
+      </p>
+      <p class="trust-notice" id="trust-notice" data-testid="trust-notice">
         信頼できる PostScript ファイルだけを開いてください。
       </p>
       <p
