@@ -4,6 +4,24 @@
 
 - Linux環境
 - asdf
+- Docker（`npm run build:wasm` 用）
+
+## Ghostscript WASM の取得
+
+| コマンド | 用途 |
+| --- | --- |
+| `npm run fetch:wasm` | GitHub Release から `gs.wasm` と `gs.mjs` を取得し、`gs-wasm.sha256` で検証して配置する。Docker が使えない環境や、通常のローカル開発・デプロイビルド向け。 |
+| `npm run build:wasm` | Docker で自前ビルドし、同じ検証を行って配置する。WASM を更新するときや、Release 用成果物の用意向け。 |
+
+### リリース成果物の作成（手動）
+
+1. `npm run build:wasm` で成果物を生成する。
+2. 生成物が `gs-wasm.sha256` と一致することを確認する。Ghostscript やビルド設定を更新してハッシュが変わった場合は、配置後のファイルから `gs-wasm.sha256` を書き換える。
+    ```bash
+    sha256sum public/gs.wasm src/generated/ghostscript/gs.mjs > gs-wasm.sha256
+    ```
+3. タグ `gs-wasm-v1` の GitHub Release に `gs.wasm` と `gs.mjs` を添付する。
+4. タグを変えるときは、`fetch:wasm` の取得元（Release タグ）も合わせて更新する。
 
 ## 開発手順
 
@@ -20,11 +38,7 @@
 
 ### ローカルでの画面確認
 
-1. `public/gs.wasm` を配置
-    ```bash
-    npm run fetch:wasm
-    ```
-    `ghostscript-wasm-esm` を更新したときは `sha256sum node_modules/ghostscript-wasm-esm/gs.wasm | awk '{print $1}' > gs-wasm.sha256` で `gs-wasm.sha256` を更新する。
+1. `public/gs.wasm` と `src/generated/ghostscript/gs.mjs` を配置する（通常は `npm run fetch:wasm`。自前ビルドしたい場合は `npm run build:wasm`）。
 2. Vite 開発サーバーのホスト
     ```bash
     npm run dev -- --host
@@ -67,10 +81,7 @@ npm run build
     ```bash
     npx playwright install-deps chromium
     ```
-3. `public/gs.wasm` を用意する
-    ```bash
-    npm run fetch:wasm
-    ```
+3. `public/gs.wasm` と `src/generated/ghostscript/gs.mjs` を用意する（通常は `npm run fetch:wasm`。自前ビルドしたい場合は `npm run build:wasm`）。
 4. playwright testの実行
     ```bash
     npm run test:large
