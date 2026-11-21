@@ -204,6 +204,24 @@ describe("startViewerDomUi", () => {
     expect(status.textContent).toContain("展開後");
   });
 
+  it("shows the configured limit for timeout errors", () => {
+    const app = createFakeViewerApp();
+    const dom = queryViewerDom();
+    startViewerDomUi(dom, app);
+
+    app.replaceState(
+      documentState("d1", "sample.ps", {
+        kind: "error",
+        error: { kind: "timeout" },
+      }),
+    );
+
+    const status = queryStatusPanel();
+    expect(status.hidden).toBe(false);
+    expect(status.textContent).toContain("60 秒");
+    expect(status.textContent).toContain("制限時間");
+  });
+
   it("shows a gzip-related message for not-gzip errors", () => {
     const app = createFakeViewerApp();
     const dom = queryViewerDom();

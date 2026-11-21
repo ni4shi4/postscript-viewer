@@ -1,7 +1,9 @@
 const MEBIBYTE = 1024 * 1024;
+const SECOND_MS = 1000;
 
 export const MAX_POSTSCRIPT_INPUT_BYTES = 32 * MEBIBYTE;
 export const MAX_DECOMPRESSED_POSTSCRIPT_BYTES = 32 * MEBIBYTE;
+export const MAX_CONVERSION_DURATION_MS = 60 * SECOND_MS;
 
 export type ByteLimitKind = "input" | "decompressed";
 
@@ -22,6 +24,10 @@ export function byteLimitInMebibytes(kind: ByteLimitKind): number {
 
 export function formattedByteLimit(kind: ByteLimitKind): string {
   return `${byteLimitInMebibytes(kind)} MiB`;
+}
+
+export function formattedConversionTimeLimit(): string {
+  return `${MAX_CONVERSION_DURATION_MS / SECOND_MS} 秒`;
 }
 
 export function assertWithinByteLimit(size: number, limit: ByteLimitKind): void {

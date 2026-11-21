@@ -5,6 +5,7 @@ import type { ByteLimitKind } from "../domain/limits";
 export type ViewerError =
   | { kind: "not-gzip" }
   | { kind: "too-large"; limit: ByteLimitKind }
+  | { kind: "timeout" }
   | { kind: "conversion-failed"; detail: string };
 
 export type ViewerDocumentStatus =

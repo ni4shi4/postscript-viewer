@@ -1,4 +1,5 @@
 import { ConversionAbortedError } from "../domain/conversion-aborted";
+import { ConversionTimeoutError } from "../domain/conversion-timeout";
 import { NotGzipError, decompressGzip, isGzipFileName } from "../domain/decompress";
 import { TooLargeError, assertWithinByteLimit } from "../domain/limits";
 import type { PdfViewer } from "../ports/pdf-viewer";
@@ -19,6 +20,9 @@ function viewerErrorFromUnknown(err: unknown): ViewerError {
   }
   if (err instanceof TooLargeError) {
     return { kind: "too-large", limit: err.limit };
+  }
+  if (err instanceof ConversionTimeoutError) {
+    return { kind: "timeout" };
   }
   if (err instanceof Error) {
     return { kind: "conversion-failed", detail: err.message };

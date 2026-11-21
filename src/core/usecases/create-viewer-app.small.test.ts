@@ -2,6 +2,7 @@ import { gzip } from "pako";
 import { describe, expect, it } from "vitest";
 
 import { ConversionAbortedError } from "../domain/conversion-aborted";
+import { ConversionTimeoutError } from "../domain/conversion-timeout";
 import { MAX_DECOMPRESSED_POSTSCRIPT_BYTES, MAX_POSTSCRIPT_INPUT_BYTES } from "../domain/limits";
 import { selectedViewerDocument } from "../state/viewer-state";
 import type { ViewerState } from "../state/viewer-state";
@@ -157,6 +158,25 @@ describe("createViewerApp", () => {
     expect(selectedStatus(app)).toEqual({
       kind: "error",
       error: { kind: "conversion-failed", detail: "Ghostscript failed" },
+    });
+    expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
+  });
+
+  it("enters timeout error state when the converter rejects with ConversionTimeoutError", async () => {
+    const { app, postScriptConverter, pdfViewer } = createTestViewerApp();
+
+    const openPromise = app.openPostScript({
+      fileName: "sample.ps",
+      data: POSTSCRIPT_BYTES,
+    });
+
+    await waitForConversions(postScriptConverter, 1);
+    postScriptConverter.failAt(0, new ConversionTimeoutError());
+    await openPromise;
+
+    expect(selectedStatus(app)).toEqual({
+      kind: "error",
+      error: { kind: "timeout" },
     });
     expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
   });
