@@ -48,6 +48,14 @@ body {
   color: color-mix(in srgb, CanvasText 75%, transparent);
 }
 
+.viewer-file-name {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .viewer-status {
   margin: 0.5rem 0 0;
 }

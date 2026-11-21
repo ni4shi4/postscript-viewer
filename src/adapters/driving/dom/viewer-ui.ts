@@ -14,20 +14,22 @@ const CONVERTING_MESSAGE = "PostScript を PDF に変換しています…";
 
 export type ViewerDom = {
   fileInput: HTMLInputElement;
+  fileNameDisplay: HTMLParagraphElement;
   pdfFrame: HTMLIFrameElement;
   statusPanel: HTMLParagraphElement;
 };
 
 export function queryViewerDom(): ViewerDom {
   const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]');
+  const fileNameDisplay = document.querySelector<HTMLParagraphElement>("[data-viewer-file-name]");
   const pdfFrame = document.querySelector<HTMLIFrameElement>("iframe");
   const statusPanel = document.querySelector<HTMLParagraphElement>("[data-viewer-status]");
 
-  if (fileInput === null || pdfFrame === null || statusPanel === null) {
+  if (fileInput === null || fileNameDisplay === null || pdfFrame === null || statusPanel === null) {
     throw new Error("Required page elements are missing");
   }
 
-  return { fileInput, pdfFrame, statusPanel };
+  return { fileInput, fileNameDisplay, pdfFrame, statusPanel };
 }
 
 function clearStatusPanel(statusPanel: HTMLParagraphElement): void {
@@ -79,6 +81,26 @@ function presentErrorStatus(statusPanel: HTMLParagraphElement, message: string):
   statusPanel.classList.add(STATUS_ERROR_CLASS);
 }
 
+function clearFileNameDisplay(fileNameDisplay: HTMLParagraphElement): void {
+  fileNameDisplay.textContent = "";
+  fileNameDisplay.hidden = true;
+}
+
+function presentFileName(fileNameDisplay: HTMLParagraphElement, fileName: string): void {
+  fileNameDisplay.textContent = fileName;
+  fileNameDisplay.hidden = false;
+}
+
+function renderViewerFileName(dom: ViewerDom, state: ViewerState): void {
+  const viewerDocument = selectedViewerDocument(state);
+  if (viewerDocument === undefined) {
+    clearFileNameDisplay(dom.fileNameDisplay);
+    return;
+  }
+
+  presentFileName(dom.fileNameDisplay, viewerDocument.fileName);
+}
+
 function renderViewerStatus(dom: ViewerDom, state: ViewerState): void {
   const viewerDocument = selectedViewerDocument(state);
   if (viewerDocument === undefined) {
@@ -112,6 +134,7 @@ export function startViewerDomUi(dom: ViewerDom, app: ViewerApp): void {
 
   app.subscribe((state) => {
     const viewerDocument = selectedViewerDocument(state);
+    renderViewerFileName(dom, state);
     renderViewerStatus(dom, state);
 
     if (viewerDocument?.status.kind === "error") {
