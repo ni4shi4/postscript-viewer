@@ -7,7 +7,15 @@
   "ignorePatterns": ["dist/**", "node_modules/**", "public/**", "PLAN.md"],
   "overrides": [
     {
-      "files": ["scripts/**/*.mjs", "vite.config.ts", "playwright.config.ts", "e2e/**/*.ts"],
+      "files": [
+        "scripts/**/*.mjs",
+        "e2e/**/*.mjs",
+        "vite.config.ts",
+        "vite.config.e2e-preview.ts",
+        "vite/**/*.ts",
+        "playwright.config.ts",
+        "e2e/**/*.ts"
+      ],
       "env": {
         "node": true
       }

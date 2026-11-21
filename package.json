@@ -12,6 +12,8 @@
     "fetch:wasm": "node scripts/fetch-gs-wasm.mjs",
     "build": "vite build",
     "preview": "vite preview",
+    "preview:e2e": "vite preview --config vite.config.e2e-preview.ts",
+    "preview:e2e-servers": "node scripts/start-e2e-preview-servers.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint && npm run check:deps",
     "check:deps": "node scripts/check-deps.mjs",

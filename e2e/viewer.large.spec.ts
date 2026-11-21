@@ -3,35 +3,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const PDF_MAGIC = "%PDF-";
+import { expectPdfFrameShowsBlobPdf } from "./support/expect-pdf-frame";
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures");
 
 const minimalPsPath = path.join(fixturesDir, "minimal.ps");
 const notGzipPsPath = path.join(fixturesDir, "not-gzip.ps");
-
-async function expectPdfFrameShowsBlobPdf(page: Page): Promise<void> {
-  const pdfFrame = page.getByTestId("pdf-frame");
-  await expect(pdfFrame).toBeVisible();
-
-  const src = await pdfFrame.getAttribute("src");
-  expect(src).not.toBeNull();
-  expect(src).toMatch(/^blob:/);
-
-  const pdfHeader = await page.evaluate(
-    async ({ blobUrl, magic }) => {
-      const response = await fetch(blobUrl);
-      const buffer = await response.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      return new TextDecoder().decode(bytes.subarray(0, magic.length));
-    },
-    { blobUrl: src as string, magic: PDF_MAGIC },
-  );
-
-  expect(pdfHeader).toBe(PDF_MAGIC);
-}
 
 test.describe.configure({ mode: "serial" });
 
