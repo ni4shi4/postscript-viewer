@@ -3,20 +3,26 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { GS_WASM_SHA256_FILE, installWasmIfSha256Matches } from "./gs-wasm-assets.mjs";
+import {
+  GS_GLUE_FILE_NAME,
+  GS_WASM_FILE_NAME,
+  GS_WASM_SHA256_FILE,
+  installAssetIfSha256Matches,
+  removeInstalledGsAssets,
+} from "./gs-wasm-assets.mjs";
 
 const DOCKER_IMAGE = "postscript-viewer-gs-wasm";
 const DYNAMIC_EXECUTION_PATTERN = /\b(eval|new\s+Function)\b/;
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dockerContext = path.join(repoRoot, "docker", "ghostscript-wasm");
-const destWasm = path.join(repoRoot, "public", "gs.wasm");
-const destGlue = path.join(repoRoot, "src", "generated", "ghostscript", "gs.mjs");
+const destWasm = path.join(repoRoot, "public", GS_WASM_FILE_NAME);
+const destGlue = path.join(repoRoot, "src", "generated", "ghostscript", GS_GLUE_FILE_NAME);
 const expectedHashPath = path.join(repoRoot, GS_WASM_SHA256_FILE);
 
 /**
@@ -37,7 +43,7 @@ async function exportArtifactsFromImage(artifactDir) {
   const containerName = `postscript-viewer-gs-wasm-export-${process.pid}`;
   try {
     runDocker(["create", "--name", containerName, DOCKER_IMAGE], "docker create");
-    for (const name of ["gs.wasm", "gs.mjs"]) {
+    for (const name of [GS_WASM_FILE_NAME, GS_GLUE_FILE_NAME]) {
       runDocker(
         ["cp", `${containerName}:/out/${name}`, path.join(artifactDir, name)],
         `docker cp ${name}`,
@@ -59,36 +65,77 @@ async function assertGlueHasNoDynamicExecution(gluePath) {
 }
 
 /**
+ * @returns {() => Promise<number>}
+ */
+function createInstallFailureHandler() {
+  return async (exitCode) => {
+    await removeInstalledGsAssets({ destWasm, destGlue });
+    return exitCode;
+  };
+}
+
+/**
+ * @param {object} options
+ * @param {string} options.sourceWasm
+ * @param {string} options.sourceGlue
+ * @param {() => Promise<number>} options.failInstall
+ * @returns {Promise<number>}
+ */
+async function installBuiltArtifacts({ sourceWasm, sourceGlue, failInstall }) {
+  const wasmResult = await installAssetIfSha256Matches({
+    sourcePath: sourceWasm,
+    destPath: destWasm,
+    expectedHashPath,
+    assetFileName: GS_WASM_FILE_NAME,
+  });
+  if (!wasmResult.ok) {
+    return failInstall(wasmResult.exitCode);
+  }
+
+  try {
+    await assertGlueHasNoDynamicExecution(sourceGlue);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    return failInstall(1);
+  }
+
+  const glueResult = await installAssetIfSha256Matches({
+    sourcePath: sourceGlue,
+    destPath: destGlue,
+    expectedHashPath,
+    assetFileName: GS_GLUE_FILE_NAME,
+  });
+  if (!glueResult.ok) {
+    return failInstall(glueResult.exitCode);
+  }
+
+  console.log(wasmResult.size);
+  return 0;
+}
+
+/**
  * @returns {Promise<number>} process exit code
  */
 async function main() {
-  runDocker(["build", "-t", DOCKER_IMAGE, dockerContext], "docker build");
+  const failInstall = createInstallFailureHandler();
 
-  const artifactDir = await mkdtemp(path.join(os.tmpdir(), "gs-wasm-artifacts-"));
   try {
-    await exportArtifactsFromImage(artifactDir);
+    runDocker(["build", "-t", DOCKER_IMAGE, dockerContext], "docker build");
 
-    const sourceWasm = path.join(artifactDir, "gs.wasm");
-    const sourceGlue = path.join(artifactDir, "gs.mjs");
+    const artifactDir = await mkdtemp(path.join(os.tmpdir(), "gs-wasm-artifacts-"));
+    try {
+      await exportArtifactsFromImage(artifactDir);
 
-    const wasmResult = await installWasmIfSha256Matches({
-      sourceWasm,
-      destWasm,
-      expectedHashPath,
-    });
-    if (!wasmResult.ok) {
-      return wasmResult.exitCode;
+      const sourceWasm = path.join(artifactDir, GS_WASM_FILE_NAME);
+      const sourceGlue = path.join(artifactDir, GS_GLUE_FILE_NAME);
+
+      return await installBuiltArtifacts({ sourceWasm, sourceGlue, failInstall });
+    } finally {
+      await rm(artifactDir, { recursive: true, force: true });
     }
-
-    await assertGlueHasNoDynamicExecution(sourceGlue);
-
-    await mkdir(path.dirname(destGlue), { recursive: true });
-    await copyFile(sourceGlue, destGlue);
-
-    console.log(wasmResult.size);
-    return 0;
-  } finally {
-    await rm(artifactDir, { recursive: true, force: true });
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    return failInstall(1);
   }
 }
 
