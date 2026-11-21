@@ -24,6 +24,7 @@
     ```bash
     npm run fetch:wasm
     ```
+    `ghostscript-wasm-esm` を更新したときは `sha256sum node_modules/ghostscript-wasm-esm/gs.wasm | awk '{print $1}' > gs-wasm.sha256` で `gs-wasm.sha256` を更新する。
 2. Vite 開発サーバーのホスト
     ```bash
     npm run dev -- --host
