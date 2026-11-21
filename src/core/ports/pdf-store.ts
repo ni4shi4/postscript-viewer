@@ -8,13 +8,3 @@ export type PdfStore = {
   load(): Promise<PdfStoreEntry | undefined>;
   clear(): Promise<void>;
 };
-
-export function createNoOpPdfStore(): PdfStore {
-  return {
-    async save() {},
-    async load() {
-      return undefined;
-    },
-    async clear() {},
-  };
-}

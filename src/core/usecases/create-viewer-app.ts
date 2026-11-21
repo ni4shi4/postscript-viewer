@@ -3,7 +3,6 @@ import { ConversionTimeoutError } from "../domain/conversion-timeout";
 import { NotGzipError, decompressGzip, isGzipFileName } from "../domain/decompress";
 import { TooLargeError, assertWithinByteLimit } from "../domain/limits";
 import type { PdfStore } from "../ports/pdf-store";
-import { createNoOpPdfStore } from "../ports/pdf-store";
 import type { PdfViewer } from "../ports/pdf-viewer";
 import type { PostScriptConverter } from "../ports/postscript-converter";
 import type { ViewerApp } from "../ports/viewer-app";
@@ -14,7 +13,7 @@ export type CreateViewerAppDeps = {
   postScriptConverter: PostScriptConverter;
   pdfViewer: PdfViewer;
   createDocumentId: () => string;
-  pdfStore?: PdfStore;
+  pdfStore: PdfStore;
 };
 
 function viewerErrorFromUnknown(err: unknown): ViewerError {
@@ -77,7 +76,7 @@ async function saveReadyPdf(
 
 export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
   const store = createViewerStore();
-  const pdfStore = deps.pdfStore ?? createNoOpPdfStore();
+  const { pdfStore } = deps;
   let activeDocumentId: string | undefined;
   let activeRestoreId: string | undefined;
   let abortController: AbortController | undefined;

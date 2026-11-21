@@ -1,5 +1,6 @@
 import "./app.css";
 
+import { createIndexedDbPdfStore } from "./adapters/driven/pdf-store-indexeddb/indexeddb-pdf-store";
 import { createIframePdfViewer } from "./adapters/driven/pdf-viewer-iframe/iframe-pdf-viewer";
 import { createPdfJsPdfViewer } from "./adapters/driven/pdf-viewer-pdfjs/pdfjs-pdf-viewer";
 import { createRequestId } from "./adapters/driven/postscript-converter/create-request-id";
@@ -33,11 +34,13 @@ const postScriptConverter = createWorkerPostScriptConverter();
 const pdfViewer: PdfViewer = navigatorHasBuiltInPdfViewer()
   ? createIframePdfViewer(viewerDom)
   : createPdfJsPdfViewer({ pdfCanvasContainer: queryPdfCanvasContainer() });
-
+const pdfStore = createIndexedDbPdfStore();
 const viewerApp = createViewerApp({
   postScriptConverter,
   pdfViewer,
+  pdfStore,
   createDocumentId: createRequestId,
 });
 
 startViewerDomUi(viewerDom, viewerApp);
+void viewerApp.restore();
