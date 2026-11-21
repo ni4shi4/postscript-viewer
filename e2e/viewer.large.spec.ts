@@ -5,7 +5,9 @@ import { gzipSync } from "node:zlib";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { expectPdfCanvasHasSignificantInk } from "./support/expect-canvas-ink";
 import { expectPdfCanvasShowsRenderedPdf } from "./support/expect-pdf-canvas";
+import { beginWatchingPdfJsStandardFontData } from "./support/expect-pdfjs-standard-font-request";
 import {
   emulateBuiltInPdfViewer,
   emulateNoBuiltInPdfViewer,
@@ -16,6 +18,7 @@ const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "fix
 
 const minimalPsPath = path.join(fixturesDir, "minimal.ps");
 const notGzipPsPath = path.join(fixturesDir, "not-gzip.ps");
+const textHelveticaPsPath = path.join(fixturesDir, "text-helvetica.ps");
 const withTextPsPath = path.join(fixturesDir, "with-text.ps");
 
 async function readPdfBlobByteLength(page: Page): Promise<number> {
@@ -25,7 +28,6 @@ async function readPdfBlobByteLength(page: Page): Promise<number> {
     return (await response.arrayBuffer()).byteLength;
   }, src);
 }
-
 test.describe.configure({ mode: "serial" });
 
 test.beforeEach(async ({ page }) => {
@@ -119,5 +121,20 @@ test.describe("when built-in PDF viewer is unavailable", () => {
   test("displays a rendered PDF on canvas when a .ps file is selected", async ({ page }) => {
     await page.getByTestId("file-input").setInputFiles(minimalPsPath);
     await expectPdfCanvasShowsRenderedPdf(page);
+  });
+
+  test("renders text ink on canvas when a PostScript file with standard-font text is selected", async ({
+    page,
+  }) => {
+    await page.getByTestId("file-input").setInputFiles(textHelveticaPsPath);
+    await expectPdfCanvasShowsRenderedPdf(page);
+    await expectPdfCanvasHasSignificantInk(page);
+  });
+
+  test("fetches pdf.js standard font data when rendering standard-font text", async ({ page }) => {
+    const standardFontDataWatch = beginWatchingPdfJsStandardFontData(page);
+    await page.getByTestId("file-input").setInputFiles(textHelveticaPsPath);
+    await expectPdfCanvasShowsRenderedPdf(page);
+    await standardFontDataWatch.expectFetched();
   });
 });
