@@ -9,6 +9,12 @@ import {
 
 import type { PdfViewer } from "../../../core/ports/pdf-viewer";
 
+import {
+  PDFJS_CMAP_URL,
+  PDFJS_STANDARD_FONT_DATA_URL,
+  PDFJS_WASM_URL,
+} from "./pdfjs-runtime-asset-urls";
+
 if (GlobalWorkerOptions.workerSrc.length === 0) {
   GlobalWorkerOptions.workerSrc = new URL(
     "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -23,6 +29,11 @@ export type PdfJsPdfViewerDom = {
 type PdfJsDocumentInitParameters = {
   data: Uint8Array;
   isEvalSupported: false;
+  standardFontDataUrl: string;
+  cMapUrl: string;
+  cMapPacked: true;
+  wasmUrl: string;
+  useSystemFonts: false;
 };
 
 export function createPdfJsPdfViewer(dom: PdfJsPdfViewerDom): PdfViewer {
@@ -128,6 +139,11 @@ export function createPdfJsPdfViewer(dom: PdfJsPdfViewerDom): PdfViewer {
       loadingTask = getDocument({
         data: pdfData,
         isEvalSupported: false,
+        standardFontDataUrl: PDFJS_STANDARD_FONT_DATA_URL,
+        cMapUrl: PDFJS_CMAP_URL,
+        cMapPacked: true,
+        wasmUrl: PDFJS_WASM_URL,
+        useSystemFonts: false,
       } satisfies PdfJsDocumentInitParameters as Parameters<typeof getDocument>[0]);
     } catch (error) {
       if (generation === renderGeneration) {
