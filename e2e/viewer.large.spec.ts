@@ -5,6 +5,11 @@ import { gzipSync } from "node:zlib";
 
 import { expect, test } from "@playwright/test";
 
+import { expectPdfCanvasShowsRenderedPdf } from "./support/expect-pdf-canvas";
+import {
+  emulateBuiltInPdfViewer,
+  emulateNoBuiltInPdfViewer,
+} from "./support/emulate-pdf-viewer-capability";
 import { expectPdfFrameShowsBlobPdf } from "./support/expect-pdf-frame";
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures");
@@ -15,6 +20,7 @@ const notGzipPsPath = path.join(fixturesDir, "not-gzip.ps");
 test.describe.configure({ mode: "serial" });
 
 test.beforeEach(async ({ page }) => {
+  await emulateBuiltInPdfViewer(page);
   await page.goto("/");
 });
 
@@ -60,4 +66,16 @@ test("shows an error for a mislabeled .ps.gz, then recovers after a valid .ps", 
 
   await page.getByTestId("file-input").setInputFiles(minimalPsPath);
   await expectPdfFrameShowsBlobPdf(page);
+});
+
+test.describe("when built-in PDF viewer is unavailable", () => {
+  test.beforeEach(async ({ page }) => {
+    await emulateNoBuiltInPdfViewer(page);
+    await page.goto("/");
+  });
+
+  test("displays a rendered PDF on canvas when a .ps file is selected", async ({ page }) => {
+    await page.getByTestId("file-input").setInputFiles(minimalPsPath);
+    await expectPdfCanvasShowsRenderedPdf(page);
+  });
 });

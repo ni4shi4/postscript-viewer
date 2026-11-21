@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 
 import { attachCspViolationMonitor } from "./support/csp-violation-monitor";
+import { emulateBuiltInPdfViewer } from "./support/emulate-pdf-viewer-capability";
 import { expectPdfFrameShowsBlobSrc } from "./support/expect-pdf-frame";
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures");
@@ -15,6 +16,7 @@ test("serves CSP headers on preview and shows a PDF without policy violations", 
   const cspMonitor = await attachCspViolationMonitor(page);
 
   try {
+    await emulateBuiltInPdfViewer(page);
     const response = await page.goto("/");
     expect(response).not.toBeNull();
 
