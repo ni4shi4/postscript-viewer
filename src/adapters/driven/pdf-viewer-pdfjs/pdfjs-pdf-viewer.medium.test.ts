@@ -44,7 +44,10 @@ function installLayoutWidth(width: number): void {
 describe("createPdfJsPdfViewer", () => {
   beforeAll(async () => {
     GlobalWorkerOptions.workerSrc = pathToFileURL(
-      path.resolve(import.meta.dirname, "../../../../node_modules/pdfjs-dist/build/pdf.worker.min.mjs"),
+      path.resolve(
+        import.meta.dirname,
+        "../../../../node_modules/pdfjs-dist/build/pdf.worker.min.mjs",
+      ),
     ).href;
     ({ createPdfJsPdfViewer } = await import("./pdfjs-pdf-viewer"));
   });
