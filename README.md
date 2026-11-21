@@ -35,8 +35,9 @@
 4. `npm run dev -- --host`（Vite 開発サーバー。`--host` で同一 LAN 上のブラウザからアクセス可能）
 5. `npm test`（Vitest: small と medium の単体・結合テスト）
 6. `npm run test:small`（core ほかの small テストのみ。外部 I/O なし・1 ケース 100ms 未満を想定）
-7. `npm run build`（本番ビルド）
-8. 品質チェック: `npm run lint`、`npm run format:check`（自動整形は `npm run format`）
+7. `npm run test:medium`（アダプタ層の medium 結合テスト。jsdom または同一プロセス内のフェイク I/O）
+8. `npm run build`（本番ビルド）
+9. 品質チェック: `npm run lint`、`npm run format:check`（自動整形は `npm run format`）
 
 ### Large E2E テスト（Playwright）
 

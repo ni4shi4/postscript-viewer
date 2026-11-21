@@ -19,7 +19,6 @@ export default defineConfig({
           include: ["**/*.medium.test.ts"],
           environment: "node",
           exclude: sharedExclude,
-          passWithNoTests: true,
         },
       }),
     ],
