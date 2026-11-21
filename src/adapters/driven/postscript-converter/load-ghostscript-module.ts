@@ -1,5 +1,3 @@
-import createModule from "ghostscript-wasm-esm";
-
 import { GS_WASM_PATH } from "./gs-wasm-path";
 import { instantiateWasmWithStreamingFallback } from "./instantiate-wasm-with-fallback";
 
@@ -66,6 +64,8 @@ export async function loadGhostscriptModule(
 
   const instantiateWasm =
     moduleOverrides?.instantiateWasm ?? createInstantiateWasmHook(locateFile, rejectWasmLoad);
+
+  const { default: createModule } = await import("../../../generated/ghostscript/gs");
 
   const module = await Promise.race([
     createModule({
