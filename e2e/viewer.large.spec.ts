@@ -3,19 +3,28 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { expectPdfCanvasShowsRenderedPdf } from "./support/expect-pdf-canvas";
 import {
   emulateBuiltInPdfViewer,
   emulateNoBuiltInPdfViewer,
 } from "./support/emulate-pdf-viewer-capability";
-import { expectPdfFrameShowsBlobPdf } from "./support/expect-pdf-frame";
+import { expectPdfFrameShowsBlobPdf, expectPdfFrameShowsBlobSrc } from "./support/expect-pdf-frame";
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures");
 
 const minimalPsPath = path.join(fixturesDir, "minimal.ps");
 const notGzipPsPath = path.join(fixturesDir, "not-gzip.ps");
+const withTextPsPath = path.join(fixturesDir, "with-text.ps");
+
+async function readPdfBlobByteLength(page: Page): Promise<number> {
+  const src = await expectPdfFrameShowsBlobSrc(page);
+  return page.evaluate(async (blobUrl) => {
+    const response = await fetch(blobUrl);
+    return (await response.arrayBuffer()).byteLength;
+  }, src);
+}
 
 test.describe.configure({ mode: "serial" });
 
@@ -66,6 +75,39 @@ test("shows an error for a mislabeled .ps.gz, then recovers after a valid .ps", 
 
   await page.getByTestId("file-input").setInputFiles(minimalPsPath);
   await expectPdfFrameShowsBlobPdf(page);
+});
+
+test("redisplays the converted PDF after a full page reload", async ({ page }) => {
+  await page.getByTestId("file-input").setInputFiles(minimalPsPath);
+  await expectPdfFrameShowsBlobPdf(page);
+
+  await page.reload();
+  await expectPdfFrameShowsBlobPdf(page);
+});
+
+test("redisplays the converted PDF after leaving and going back", async ({ page }) => {
+  await page.getByTestId("file-input").setInputFiles(minimalPsPath);
+  await expectPdfFrameShowsBlobPdf(page);
+
+  await page.goto("data:text/html,<p>away</p>");
+  await page.goBack();
+  await expectPdfFrameShowsBlobPdf(page);
+});
+
+test("replaces the stored PDF when a different PostScript file is converted", async ({ page }) => {
+  await page.getByTestId("file-input").setInputFiles(minimalPsPath);
+  await expectPdfFrameShowsBlobPdf(page);
+  const firstPdfByteLength = await readPdfBlobByteLength(page);
+
+  await page.getByTestId("file-input").setInputFiles(withTextPsPath);
+  await expectPdfFrameShowsBlobPdf(page);
+  const secondPdfByteLength = await readPdfBlobByteLength(page);
+  expect(secondPdfByteLength).not.toBe(firstPdfByteLength);
+
+  await page.reload();
+  await expectPdfFrameShowsBlobPdf(page);
+  const restoredPdfByteLength = await readPdfBlobByteLength(page);
+  expect(restoredPdfByteLength).toBe(secondPdfByteLength);
 });
 
 test.describe("when built-in PDF viewer is unavailable", () => {
