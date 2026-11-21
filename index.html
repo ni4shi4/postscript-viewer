@@ -3,10 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>postscript-viewer</title>
+    <meta
+      name="description"
+      content="PostScript（.ps / .ps.gz）をブラウザ内で PDF に変換して表示するビューア。ファイルは外部に送信されません。"
+    />
+    <title>PostScript ビューア - .ps / .ps.gz をブラウザで PDF 表示</title>
   </head>
   <body>
     <header class="toolbar">
+      <div class="toolbar-intro">
+        <h1>PostScript ビューア</h1>
+        <p class="toolbar-intro__description">
+          ブラウザ内で PostScript（.ps / .ps.gz）を PDF
+          に変換して表示します。ファイルはサーバーへ送信されず、すべてお使いの端末上で処理されます。
+        </p>
+        <ol class="toolbar-intro__steps">
+          <li>PostScript ファイルを選択する</li>
+          <li>変換が完了するまで待つ</li>
+          <li>下の画面に PDF が表示される</li>
+        </ol>
+      </div>
       <label class="file-picker">
         <span>PostScript ファイル（.ps / .ps.gz）</span>
         <input type="file" accept=".ps,.gz" data-testid="file-input" />

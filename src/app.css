@@ -15,6 +15,31 @@ body {
   border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
 }
 
+.toolbar-intro {
+  margin: 0 0 0.75rem;
+}
+
+.toolbar-intro h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.toolbar-intro__description {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, CanvasText 85%, transparent);
+}
+
+.toolbar-intro__steps {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, CanvasText 80%, transparent);
+}
+
 .viewer {
   flex: 1;
   min-height: 0;
