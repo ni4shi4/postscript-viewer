@@ -28,6 +28,12 @@ async function readPdfBlobByteLength(page: Page): Promise<number> {
     return (await response.arrayBuffer()).byteLength;
   }, src);
 }
+
+async function expectViewerFileName(page: Page, fileName: string): Promise<void> {
+  const fileNameDisplay = page.getByTestId("viewer-file-name");
+  await expect(fileNameDisplay).toBeVisible();
+  await expect(fileNameDisplay).toHaveText(fileName);
+}
 test.describe.configure({ mode: "serial" });
 
 test.beforeEach(async ({ page }) => {
@@ -85,6 +91,36 @@ test("redisplays the converted PDF after a full page reload", async ({ page }) =
 
   await page.reload();
   await expectPdfFrameShowsBlobPdf(page);
+});
+
+test("keeps the selected file name visible after conversion completes", async ({ page }) => {
+  await page.getByTestId("file-input").setInputFiles(minimalPsPath);
+  await expectPdfFrameShowsBlobPdf(page);
+  await expectViewerFileName(page, path.basename(minimalPsPath));
+});
+
+test("redisplays the saved file name after a full page reload", async ({ page }) => {
+  const expectedFileName = path.basename(minimalPsPath);
+
+  await page.getByTestId("file-input").setInputFiles(minimalPsPath);
+  await expectPdfFrameShowsBlobPdf(page);
+  await expectViewerFileName(page, expectedFileName);
+
+  await page.reload();
+  await expectPdfFrameShowsBlobPdf(page);
+  await expectViewerFileName(page, expectedFileName);
+});
+
+test("replaces the displayed file name when a different PostScript file is converted", async ({
+  page,
+}) => {
+  await page.getByTestId("file-input").setInputFiles(minimalPsPath);
+  await expectPdfFrameShowsBlobPdf(page);
+  await expectViewerFileName(page, path.basename(minimalPsPath));
+
+  await page.getByTestId("file-input").setInputFiles(withTextPsPath);
+  await expectPdfFrameShowsBlobPdf(page);
+  await expectViewerFileName(page, path.basename(withTextPsPath));
 });
 
 test("redisplays the converted PDF after leaving and going back", async ({ page }) => {
