@@ -29,8 +29,14 @@
           type="file"
           accept=".ps,.gz"
           data-testid="file-input"
-          aria-describedby="privacy-notice trust-notice"
+          aria-describedby="file-limits-notice privacy-notice trust-notice"
         />
+        <p
+          id="file-limits-notice"
+          class="file-limits-notice"
+          data-file-limits
+          data-testid="file-limits-notice"
+        ></p>
       </label>
       <p class="viewer-file-name" data-viewer-file-name data-testid="viewer-file-name" hidden></p>
       <p id="privacy-notice" class="privacy-notice">

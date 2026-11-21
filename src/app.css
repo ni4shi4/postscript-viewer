@@ -94,6 +94,13 @@ body {
   outline-offset: 2px;
 }
 
+.file-limits-notice {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, CanvasText 75%, transparent);
+}
+
 .privacy-notice {
   margin: 0.5rem 0 0;
   font-size: 0.8125rem;
@@ -158,6 +165,7 @@ body {
 
   .toolbar-intro__description,
   .toolbar-intro__steps,
+  .file-limits-notice,
   .privacy-notice,
   .trust-notice {
     font-size: 0.75rem;
