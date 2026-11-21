@@ -52,4 +52,15 @@ describe("instantiateWasmWithStreamingFallback (behavior)", () => {
 
     expect(instance).toBeInstanceOf(RealWasmInstance);
   });
+
+  it("rejects when fetch returns a non-ok status", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 404, statusText: "Not Found" })),
+    );
+
+    await expect(instantiateWasmWithStreamingFallback(WASM_URL, IMPORTS)).rejects.toThrow(
+      /Failed to fetch WASM \(404\)/,
+    );
+  });
 });

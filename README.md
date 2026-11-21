@@ -33,18 +33,39 @@
 2. リポジトリ直下で `npm ci`（`prepare` が実行され、[Husky](https://typicode.github.io/husky/) による pre-commit フックが有効になる）
 3. `npm run fetch:wasm`（`public/gs.wasm` を配置）
 4. `npm run dev -- --host`（Vite 開発サーバー。`--host` で同一 LAN 上のブラウザからアクセス可能）
-5. `npm test`（Vitest: small と medium の単体・結合テスト）
-6. `npm run test:small`（core ほかの small テストのみ。外部 I/O なし・1 ケース 100ms 未満を想定）
-7. `npm run test:medium`（アダプタ層の medium 結合テスト。jsdom または同一プロセス内のフェイク I/O）
-8. `npm run build`（本番ビルド）
-9. 品質チェック: `npm run lint`、`npm run format:check`（自動整形は `npm run format`）
+5. `npm test`（small と medium。詳細は「テスト」節）
+6. `npm run build`（本番ビルド）
+7. 品質チェック: `npm run lint`、`npm run format:check`（自動整形は `npm run format`）
 
-### Large E2E テスト（Playwright）
+## テスト
 
-実ブラウザ（Chromium）と `public/gs.wasm` を使い、ビルド済みプレビュー上で PostScript 閲覧の回帰を検知します。
+テストは **small** / **medium** / **large** の 3 段階に分かれます。`npm test` は small と medium のみを実行します（large は pre-commit フックに含めません）。
+
+| 段階 | 対象 | 環境 | 目安（1 ケースあたり） |
+| --- | --- | --- | --- |
+| small | Application core 中心（primary port を駆動し secondary port にフェイク） | Vitest。外部 I/O なし | 100 ms 未満 |
+| medium | アダプタ層の同一プロセス内結合（jsdom、フェイク `GhostscriptModule`、最小 WASM バイト列、`fetch` スタブなど） | Vitest。実 `gs.wasm`・実ブラウザは使わない | おおよそ 1 秒まで |
+| large | ビルド済みプレビュー上の PostScript 閲覧（E2E） | Playwright（Chromium）、`vite build` + `vite preview`、実 `gs.wasm` | 数秒〜数十秒 |
+
+**コマンド**
+
+| コマンド | 内容 |
+| --- | --- |
+| `npm test` | small + medium |
+| `npm run test:small` | small のみ |
+| `npm run test:medium` | medium のみ |
+| `npm run test:large` | large（E2E）のみ |
+
+**ファイル名の規約**
+
+- small: `*.small.test.ts`
+- medium: `*.medium.test.ts`
+- large: `e2e/*.large.spec.ts`
+
+**large の前提**
 
 1. `npm run fetch:wasm` で `public/gs.wasm` を用意する
-2. WSL2（Ubuntu）上で Chromium 用ブラウザを取得する（初回のみ）:
+2. WSL2（Ubuntu）など Linux 上で Chromium 用ブラウザを取得する（初回のみ）:
 
    ```bash
    npx playwright install chromium
@@ -52,9 +73,17 @@
 
    依存ライブラリが足りない場合は、Playwright が表示する `npx playwright install-deps chromium`（`sudo` が必要）を実行する。ディストリビューションによっては `libnss3`、`libatk-bridge2.0-0`、`libxkbcommon0` などが必要になる。
 
-3. `npm run test:large`（内部で `vite build` のあと `vite preview` を起動してテストする）
+3. `npm run test:large` を実行する（内部で `vite build` のあと `vite preview` を起動してテストする）
 
 `test-results/` と `playwright-report/` は生成物のため Git には含めません。
+
+**テストの原則（実装詳細に依存しない）**
+
+- 内部関数の呼び出し回数・引数・順序は検証せず、入力と観測できる出力（状態、ポート越しの結果、DOM の見え方）のみを検証する
+- モックは外部境界（secondary port、`fetch`、`URL.createObjectURL` など）に限り、自前モジュール同士はモックしない
+- DOM 要素の特定には `data-testid` や role を用いる
+
+レイヤ分離と依存方向は上記「アーキテクチャ」の Hexagonal 構成および依存規則に従います。
 
 ## ブラウザでの変換確認（W2）
 
