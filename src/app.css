@@ -27,6 +27,12 @@ body {
   width: 100%;
 }
 
+.trust-notice {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: color-mix(in srgb, CanvasText 75%, transparent);
+}
+
 .viewer-status {
   margin: 0.5rem 0 0;
 }

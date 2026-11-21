@@ -39,6 +39,12 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
+test("shows a trust notice near the file picker", async ({ page }) => {
+  const trustNotice = page.getByTestId("trust-notice");
+  await expect(trustNotice).toBeVisible();
+  await expect(trustNotice).toContainText("信頼できる PostScript");
+});
+
 test("displays a PDF blob when a .ps file is selected", async ({ page }) => {
   await page.getByTestId("file-input").setInputFiles(minimalPsPath);
   await expectPdfFrameShowsBlobPdf(page);
