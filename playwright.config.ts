@@ -20,12 +20,12 @@ function createE2ePreviewWebServer() {
 
 export default defineConfig({
   testDir: "e2e",
-  testMatch: "*.large.spec.ts",
+  testMatch: "*.large.test.ts",
   fullyParallel: false,
   projects: [
     {
       name: "chromium",
-      testMatch: "viewer.large.spec.ts",
+      testMatch: "viewer.large.test.ts",
       use: {
         ...devices["Desktop Chrome"],
         baseURL: previewOrigin,
@@ -33,7 +33,7 @@ export default defineConfig({
     },
     {
       name: "chromium-security-headers",
-      testMatch: "security-headers.large.spec.ts",
+      testMatch: "security-headers.large.test.ts",
       use: {
         ...devices["Desktop Chrome"],
         baseURL: securityPreviewOrigin,

@@ -22,10 +22,11 @@
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "test": "vitest run",
+    "test": "vitest run --project small --project medium",
     "test:small": "vitest run --project small",
     "test:medium": "vitest run --project medium",
-    "test:large": "playwright test",
+    "test:large:adapter": "vitest run --project large",
+    "test:large": "npm run test:large:adapter && playwright test",
     "prepare": "husky"
   },
   "lint-staged": {

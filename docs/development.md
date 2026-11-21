@@ -38,6 +38,13 @@ vitest(small + medium)の実行
 npm test
 ```
 
+adapter 単独 large（実 Ghostscript WASM）の実行
+```bash
+npm run build:wasm
+# または npm run fetch:wasm
+npm run test:large:adapter
+```
+
 リンターとフォーマッターの実行
 ```bash
 npm run lint
