@@ -3,11 +3,13 @@ import "./app.css";
 import { createIframePdfViewer } from "./adapters/driven/pdf-viewer-iframe/iframe-pdf-viewer";
 import { createRequestId } from "./adapters/driven/postscript-converter/create-request-id";
 import { createWorkerPostScriptConverter } from "./adapters/driven/postscript-converter/worker-postscript-converter";
+import { applyFooterPageHost } from "./adapters/driving/dom/footer-page-host";
 import { applyFooterSourceRepositoryLink } from "./adapters/driving/dom/footer-source-link";
 import { queryViewerDom, startViewerDomUi } from "./adapters/driving/dom/viewer-ui";
 import { createViewerApp } from "./core/usecases/create-viewer-app";
 
 applyFooterSourceRepositoryLink(BUILD_COMMIT_SHA);
+applyFooterPageHost();
 
 const viewerDom = queryViewerDom();
 const postScriptConverter = createWorkerPostScriptConverter();
