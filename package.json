@@ -19,6 +19,7 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "test": "vitest run",
+    "test:small": "vitest run --project small",
     "test:large": "playwright test",
     "prepare": "husky"
   },
