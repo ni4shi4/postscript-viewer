@@ -11,18 +11,7 @@
   </head>
   <body>
     <header class="toolbar">
-      <div class="toolbar-intro">
-        <h1>PostScript ビューア</h1>
-        <p class="toolbar-intro__description">
-          ブラウザ内で PostScript を PDF に変換して表示します。
-        </p>
-        <h2>使い方</h2>
-        <ol class="toolbar-intro__steps">
-          <li>PostScript ファイルを選ぶ</li>
-          <li>変換が終わるまで待つ</li>
-          <li>表示された PDF を確認する</li>
-        </ol>
-      </div>
+      <div id="mount-toolbar-intro"></div>
       <label class="file-picker">
         <span class="file-picker__label">PostScript ファイル</span>
         <input
@@ -31,20 +20,11 @@
           data-testid="file-input"
           aria-describedby="file-limits-notice privacy-notice trust-notice"
         />
-        <p
-          id="file-limits-notice"
-          class="file-limits-notice"
-          data-file-limits
-          data-testid="file-limits-notice"
-        ></p>
+        <div id="mount-file-limits-notice"></div>
       </label>
       <p class="viewer-file-name" data-viewer-file-name data-testid="viewer-file-name" hidden></p>
-      <p id="privacy-notice" class="privacy-notice">
-        ファイルはサーバーへ送信されず、すべてお使いの端末上で処理されます。
-      </p>
-      <p class="trust-notice" id="trust-notice" data-testid="trust-notice">
-        信頼できる PostScript ファイルだけを開いてください。
-      </p>
+      <div id="mount-privacy-notice"></div>
+      <div id="mount-trust-notice"></div>
       <p
         class="viewer-status"
         data-viewer-status
@@ -58,13 +38,7 @@
       <iframe title="変換された PDF" data-testid="pdf-frame" hidden></iframe>
       <div class="pdf-canvas-container" data-testid="pdf-canvas-container" hidden></div>
     </main>
-    <footer class="app-footer">
-      <a href="https://github.com/ni4shi4/postscript-viewer" rel="noopener noreferrer"
-        >ソースコード</a
-      >
-      <span class="app-footer__sep" aria-hidden="true">·</span>
-      <span>AGPL-3.0</span>
-    </footer>
+    <footer class="app-footer" id="mount-app-footer"></footer>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
