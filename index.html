@@ -3,16 +3,46 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>postscript-viewer</title>
+    <meta
+      name="description"
+      content="PostScript（.ps / .ps.gz）をブラウザ内で PDF に変換して表示するビューア。ファイルは外部に送信されません。"
+    />
+    <title>PostScript ビューア - .ps / .ps.gz をブラウザで PDF 表示</title>
   </head>
   <body>
     <header class="toolbar">
+      <div class="toolbar-intro">
+        <h1>PostScript ビューア</h1>
+        <p class="toolbar-intro__description">
+          ブラウザ内で PostScript を PDF に変換して表示します。
+        </p>
+        <h2>使い方</h2>
+        <ol class="toolbar-intro__steps">
+          <li>PostScript ファイルを選ぶ</li>
+          <li>変換が終わるまで待つ</li>
+          <li>表示された PDF を確認する</li>
+        </ol>
+      </div>
       <label class="file-picker">
-        <span>PostScript ファイル（.ps / .ps.gz）</span>
-        <input type="file" accept=".ps,.gz" data-testid="file-input" />
+        <span class="file-picker__label">PostScript ファイル</span>
+        <input
+          type="file"
+          accept=".ps,.gz"
+          data-testid="file-input"
+          aria-describedby="file-limits-notice privacy-notice trust-notice"
+        />
+        <p
+          id="file-limits-notice"
+          class="file-limits-notice"
+          data-file-limits
+          data-testid="file-limits-notice"
+        ></p>
       </label>
       <p class="viewer-file-name" data-viewer-file-name data-testid="viewer-file-name" hidden></p>
-      <p class="trust-notice" data-testid="trust-notice">
+      <p id="privacy-notice" class="privacy-notice">
+        ファイルはサーバーへ送信されず、すべてお使いの端末上で処理されます。
+      </p>
+      <p class="trust-notice" id="trust-notice" data-testid="trust-notice">
         信頼できる PostScript ファイルだけを開いてください。
       </p>
       <p

@@ -47,6 +47,15 @@ test("shows a trust notice near the file picker", async ({ page }) => {
   await expect(trustNotice).toContainText("信頼できる PostScript");
 });
 
+test("shows the page heading and a descriptive document title", async ({ page }) => {
+  const heading = page.getByRole("heading", { level: 1 });
+  await expect(heading).toBeVisible();
+
+  const title = await page.title();
+  expect(title).not.toBe("");
+  expect(title).not.toBe("postscript-viewer");
+});
+
 test("displays a PDF blob when a .ps file is selected", async ({ page }) => {
   await page.getByTestId("file-input").setInputFiles(minimalPsPath);
   await expectPdfFrameShowsBlobPdf(page);

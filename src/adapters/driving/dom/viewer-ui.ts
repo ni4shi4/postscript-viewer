@@ -1,8 +1,5 @@
-import {
-  formattedByteLimit,
-  formattedConversionTimeLimit,
-  type ByteLimitKind,
-} from "../../../core/domain/limits";
+import type { ByteLimitKind } from "../../../core/domain/limits";
+import { byteLimitParenthetical, conversionTimeLimitParenthetical } from "./limit-display-text";
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import type { ViewerError, ViewerState } from "../../../core/state/viewer-state";
 import { selectedViewerDocument } from "../../../core/state/viewer-state";
@@ -50,15 +47,14 @@ function userMessageForNotGzipError(): string {
 }
 
 function userMessageForConversionTimeout(): string {
-  return `変換が制限時間（${formattedConversionTimeLimit()}）を超えました`;
+  return `変換が${conversionTimeLimitParenthetical()}を超えました`;
 }
 
 function userMessageForTooLargeLimit(limit: ByteLimitKind): string {
-  const formatted = formattedByteLimit(limit);
   if (limit === "input") {
-    return `ファイルサイズが上限（${formatted}）を超えています`;
+    return `ファイルサイズが${byteLimitParenthetical(limit)}を超えています`;
   }
-  return `展開後のサイズが上限（${formatted}）を超えています`;
+  return `展開後のサイズが${byteLimitParenthetical(limit)}を超えています`;
 }
 
 function userMessageFromViewerError(error: ViewerError): string {

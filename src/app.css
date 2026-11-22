@@ -15,6 +15,99 @@ body {
   border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
 }
 
+.toolbar-intro {
+  margin: 0 0 0.75rem;
+}
+
+.toolbar-intro h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.toolbar-intro__description {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, CanvasText 85%, transparent);
+}
+
+.toolbar-intro h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.toolbar-intro__steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, CanvasText 80%, transparent);
+}
+
+.file-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+}
+
+.file-picker__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.file-picker input[type="file"] {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-height: 2.75rem;
+  padding: 0.25rem;
+  border: 1px solid color-mix(in srgb, CanvasText 25%, transparent);
+  border-radius: 0.375rem;
+  background: Canvas;
+  color: CanvasText;
+  font: inherit;
+}
+
+.file-picker input[type="file"]::file-selector-button {
+  box-sizing: border-box;
+  min-height: 2.75rem;
+  margin-right: 0.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid color-mix(in srgb, CanvasText 30%, transparent);
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, CanvasText 8%, Canvas);
+  color: CanvasText;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.file-picker input[type="file"]:hover::file-selector-button {
+  background: color-mix(in srgb, CanvasText 14%, Canvas);
+}
+
+.file-picker input[type="file"]:focus-visible {
+  outline: 2px solid LinkText;
+  outline-offset: 2px;
+}
+
+.file-limits-notice {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, CanvasText 75%, transparent);
+}
+
+.privacy-notice {
+  margin: 0.5rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, CanvasText 75%, transparent);
+}
+
 .viewer {
   flex: 1;
   min-height: 0;
@@ -43,8 +136,9 @@ body {
 }
 
 .trust-notice {
-  margin: 0.5rem 0 0;
-  font-size: 0.875rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
   color: color-mix(in srgb, CanvasText 75%, transparent);
 }
 
@@ -54,6 +148,33 @@ body {
   max-width: 100%;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+@media (max-width: 480px) {
+  .toolbar {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .toolbar-intro {
+    margin-bottom: 0.5rem;
+  }
+
+  .toolbar-intro h1 {
+    font-size: 1.125rem;
+  }
+
+  .toolbar-intro__description,
+  .toolbar-intro__steps,
+  .file-limits-notice,
+  .privacy-notice,
+  .trust-notice {
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .file-picker {
+    margin-top: 0.5rem;
+  }
 }
 
 .viewer-status {
