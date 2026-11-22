@@ -61,6 +61,9 @@ function createFakeViewerApp(
     },
     async restore() {},
     cancel() {},
+    async selectDocument() {},
+    async deleteDocument() {},
+    async clearHistory() {},
     getOpenPostScriptCalls: () => openCalls,
   };
 }

@@ -17,6 +17,7 @@ export type ViewerDocument = {
   id: string;
   fileName: string;
   status: ViewerDocumentStatus;
+  savedAt?: number;
 };
 
 export type ViewerState = {

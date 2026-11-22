@@ -18,6 +18,7 @@ export type FakePdfStore = PdfStore & {
   setStored(entry: PdfStoreEntry | undefined): void;
   setSaveDelay(delay: () => Promise<void>): void;
   setLoadDelay(delay: () => Promise<void>): void;
+  setListDelay(delay: () => Promise<void>): void;
 };
 
 function toHistoryMeta(record: FakeHistoryRecord): PdfStoreHistoryMeta {
@@ -44,6 +45,7 @@ export function createFakePdfStore(): FakePdfStore {
   const history = new Map<string, FakeHistoryRecord>();
   let saveDelay: (() => Promise<void>) | undefined;
   let loadDelay: (() => Promise<void>) | undefined;
+  let listDelay: (() => Promise<void>) | undefined;
 
   return {
     async save(entry) {
@@ -62,9 +64,15 @@ export function createFakePdfStore(): FakePdfStore {
       stored = undefined;
     },
     async put(entry) {
+      if (saveDelay !== undefined) {
+        await saveDelay();
+      }
       putHistoryRecord(history, entry);
     },
     async list() {
+      if (listDelay !== undefined) {
+        await listDelay();
+      }
       return sortPdfHistoryMetasNewestFirst([...history.values()].map(toHistoryMeta));
     },
     async get(id) {
@@ -92,6 +100,9 @@ export function createFakePdfStore(): FakePdfStore {
     },
     setLoadDelay(delay) {
       loadDelay = delay;
+    },
+    setListDelay(delay) {
+      listDelay = delay;
     },
   };
 }

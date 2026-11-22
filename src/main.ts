@@ -38,6 +38,7 @@ const viewerApp = createViewerApp({
   pdfViewer,
   pdfStore,
   createDocumentId: createRequestId,
+  now: () => Date.now(),
 });
 
 connectViewerApp(viewerApp);
