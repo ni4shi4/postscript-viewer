@@ -65,6 +65,97 @@ test("displays a PDF blob when a .ps file is selected", async ({ page }) => {
   await convertPostScriptViaFilePicker(page, minimalPsPath);
 });
 
+const layoutHeightTolerancePx = 3;
+
+async function readViewerSurfaceLayout(page: Page) {
+  return page.evaluate(() => {
+    const selectors = {
+      toolbar: ".toolbar",
+      footer: ".app-footer",
+      viewer: "main.viewer",
+      viewerSurface: ".viewer-surface",
+      pdfFrame: '[data-testid="pdf-frame"]',
+    } as const;
+
+    const layout: Record<
+      keyof typeof selectors,
+      { top: number; height: number; bottom: number } | null
+    > = {
+      toolbar: null,
+      footer: null,
+      viewer: null,
+      viewerSurface: null,
+      pdfFrame: null,
+    };
+
+    for (const key of Object.keys(selectors) as Array<keyof typeof selectors>) {
+      const element = document.querySelector(selectors[key]);
+      if (element === null) {
+        continue;
+      }
+      const rect = element.getBoundingClientRect();
+      layout[key] = { top: rect.top, height: rect.height, bottom: rect.bottom };
+    }
+
+    return {
+      viewportHeight: window.innerHeight,
+      ...layout,
+    };
+  });
+}
+
+function expectMainViewerFillsRemainingViewport(
+  layout: Awaited<ReturnType<typeof readViewerSurfaceLayout>>,
+): void {
+  expect(layout.toolbar).not.toBeNull();
+  expect(layout.footer).not.toBeNull();
+  expect(layout.viewer).not.toBeNull();
+
+  const toolbarBottom = layout.toolbar!.bottom;
+  const footerTop = layout.footer!.top;
+  const remainingHeight = footerTop - toolbarBottom;
+
+  expect(remainingHeight).toBeGreaterThan(150);
+  expect(layout.viewer!.height).toBeGreaterThan(remainingHeight - layoutHeightTolerancePx);
+  expect(layout.viewer!.height).toBeLessThan(remainingHeight + layoutHeightTolerancePx);
+  expect(layout.viewer!.top).toBeGreaterThan(toolbarBottom - layoutHeightTolerancePx);
+  expect(layout.viewer!.top).toBeLessThan(toolbarBottom + layoutHeightTolerancePx);
+  expect(layout.viewer!.bottom).toBeGreaterThan(footerTop - layoutHeightTolerancePx);
+  expect(layout.viewer!.bottom).toBeLessThan(footerTop + layoutHeightTolerancePx);
+}
+
+function expectPdfFrameFillsMainViewer(
+  layout: Awaited<ReturnType<typeof readViewerSurfaceLayout>>,
+): void {
+  expect(layout.viewer).not.toBeNull();
+  expect(layout.pdfFrame).not.toBeNull();
+
+  const viewerHeight = layout.viewer!.height;
+  const viewerTop = layout.viewer!.top;
+  const viewerBottom = layout.viewer!.bottom;
+
+  expect(layout.pdfFrame!.height).toBeGreaterThan(150);
+  expect(layout.pdfFrame!.height).toBeGreaterThan(viewerHeight - layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.height).toBeLessThan(viewerHeight + layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.top).toBeGreaterThan(viewerTop - layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.top).toBeLessThan(viewerTop + layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.bottom).toBeGreaterThan(viewerBottom - layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.bottom).toBeLessThan(viewerBottom + layoutHeightTolerancePx);
+}
+
+test("fills the main viewer with the PDF preview between the toolbar and footer", async ({
+  page,
+}) => {
+  const initialLayout = await readViewerSurfaceLayout(page);
+  expectMainViewerFillsRemainingViewport(initialLayout);
+
+  await convertPostScriptViaFilePicker(page, minimalPsPath);
+
+  const convertedLayout = await readViewerSurfaceLayout(page);
+  expectMainViewerFillsRemainingViewport(convertedLayout);
+  expectPdfFrameFillsMainViewer(convertedLayout);
+});
+
 test("displays a PDF blob when a gzip-compressed .ps.gz file is selected", async ({ page }) => {
   const postScriptBytes = readFileSync(minimalPsPath);
   const gzipBody = gzipSync(postScriptBytes);
