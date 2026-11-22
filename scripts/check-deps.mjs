@@ -41,14 +41,14 @@ function classifySourceFile(absPath) {
  * @param {string} dir
  * @returns {Promise<string[]>}
  */
-async function collectTypeScriptFiles(dir) {
+async function collectSourceFiles(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...(await collectTypeScriptFiles(fullPath)));
-    } else if (entry.name.endsWith(".ts")) {
+      files.push(...(await collectSourceFiles(fullPath)));
+    } else if (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx")) {
       files.push(fullPath);
     }
   }
@@ -72,7 +72,7 @@ function extractImportSpecifiers(content) {
  * @param {string} specifier
  */
 function resolveRelativeImport(fromFile, specifier) {
-  const withoutSuffix = specifier.replace(/(\.(ts|js))?$/, "");
+  const withoutSuffix = specifier.replace(/(\.(ts|tsx|js|jsx))?$/, "");
   return path.resolve(path.dirname(fromFile), withoutSuffix);
 }
 
@@ -131,7 +131,7 @@ function checkImportViolation(file, specifier, classification) {
   }
 
   if (classification.kind === "core") {
-    const isTestFile = file.endsWith(".test.ts");
+    const isTestFile = file.endsWith(".test.ts") || file.endsWith(".test.tsx");
     const allowedPackages = isTestFile
       ? new Set([...CORE_ALLOWED_PACKAGES, ...CORE_TEST_ALLOWED_PACKAGES])
       : CORE_ALLOWED_PACKAGES;
@@ -157,7 +157,7 @@ function stripStringLiterals(content) {
 }
 
 function checkBannedGlobals(file, content, classification) {
-  if (classification.kind !== "core" || file.endsWith(".test.ts")) {
+  if (classification.kind !== "core" || file.endsWith(".test.ts") || file.endsWith(".test.tsx")) {
     return [];
   }
   const rel = path.relative(srcRoot, file).replaceAll("\\", "/");
@@ -189,7 +189,7 @@ function checkFile(file, content) {
   return violations;
 }
 
-const files = await collectTypeScriptFiles(srcRoot);
+const files = await collectSourceFiles(srcRoot);
 const allViolations = [];
 
 for (const file of files) {

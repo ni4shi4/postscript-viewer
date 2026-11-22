@@ -21,7 +21,7 @@
       }
     },
     {
-      "files": ["src/core/**/*.ts"],
+      "files": ["src/core/**/*.{ts,tsx}"],
       "env": {
         "node": true
       },
@@ -52,9 +52,9 @@
       }
     },
     {
-      "files": ["src/**/*.ts"],
+      "files": ["src/**/*.{ts,tsx}"],
       "excludeFiles": [
-        "src/core/**/*.ts",
+        "src/core/**/*.{ts,tsx}",
         "src/adapters/driven/postscript-converter/convert.worker.ts"
       ],
       "env": {
