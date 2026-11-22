@@ -23,10 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
+      - uses: asdf-vm/actions/install@v4
       - run: npm ci
       - run: npm run test:small
 
@@ -35,10 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
+      - uses: asdf-vm/actions/install@v4
       - run: npm ci
       - run: npm run test:medium
 
@@ -47,10 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
+      - uses: asdf-vm/actions/install@v4
       - run: npm ci
       - run: npm run fetch:wasm
       - run: npx playwright install --with-deps chromium
