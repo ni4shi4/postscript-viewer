@@ -1,7 +1,11 @@
+import { memo } from "preact/compat";
 import { render } from "preact";
+import { useRef } from "preact/hooks";
 
-import { AppFooter, type AppFooterProps } from "./footer-source-link";
+import type { ViewerApp } from "../../../core/ports/viewer-app";
 import { FileLimitsNotice } from "./file-limits-notice";
+import { AppFooter, type AppFooterProps } from "./footer-source-link";
+import { useViewerDomUi, ViewerFileName, ViewerStatus } from "./viewer-ui";
 
 export function ToolbarIntro() {
   return (
@@ -36,6 +40,51 @@ export function TrustNotice() {
   );
 }
 
+const ViewerMain = memo(function ViewerMain() {
+  return (
+    <main class="viewer">
+      <iframe title="変換された PDF" data-testid="pdf-frame" hidden />
+      <div class="pdf-canvas-container" data-testid="pdf-canvas-container" hidden />
+    </main>
+  );
+});
+
+export type AppProps = AppFooterProps & {
+  app?: ViewerApp;
+};
+
+export function App({ commitSha, app }: AppProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const viewerState = useViewerDomUi(app, fileInputRef);
+
+  return (
+    <>
+      <header class="toolbar">
+        <ToolbarIntro />
+        <label class="file-picker">
+          <span class="file-picker__label">PostScript ファイル</span>
+          <input
+            type="file"
+            accept=".ps,.gz"
+            data-testid="file-input"
+            aria-describedby="file-limits-notice privacy-notice trust-notice"
+            ref={fileInputRef}
+          />
+          <FileLimitsNotice />
+        </label>
+        <ViewerFileName state={viewerState} />
+        <PrivacyNotice />
+        <TrustNotice />
+        <ViewerStatus state={viewerState} />
+      </header>
+      <ViewerMain />
+      <footer class="app-footer">
+        <AppFooter commitSha={commitSha} />
+      </footer>
+    </>
+  );
+}
+
 function requireMountElement(id: string): HTMLElement {
   const element = document.getElementById(id);
   if (element === null) {
@@ -44,10 +93,20 @@ function requireMountElement(id: string): HTMLElement {
   return element;
 }
 
-export function mountStaticShell({ commitSha }: AppFooterProps): void {
-  render(<ToolbarIntro />, requireMountElement("mount-toolbar-intro"));
-  render(<FileLimitsNotice />, requireMountElement("mount-file-limits-notice"));
-  render(<PrivacyNotice />, requireMountElement("mount-privacy-notice"));
-  render(<TrustNotice />, requireMountElement("mount-trust-notice"));
-  render(<AppFooter commitSha={commitSha} />, requireMountElement("mount-app-footer"));
+export type MountViewerAppOptions = AppFooterProps;
+
+export function mountViewerApp(options: MountViewerAppOptions): (app: ViewerApp) => void {
+  const mount = requireMountElement("mount-app");
+  let viewerApp: ViewerApp | undefined;
+
+  const renderRoot = (): void => {
+    render(<App commitSha={options.commitSha} app={viewerApp} />, mount);
+  };
+
+  renderRoot();
+
+  return (app: ViewerApp) => {
+    viewerApp = app;
+    renderRoot();
+  };
 }
