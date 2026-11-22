@@ -87,6 +87,14 @@ function queryStatusPanel(): HTMLParagraphElement {
   return panel;
 }
 
+function queryFileNameDisplay(): HTMLParagraphElement {
+  const display = document.querySelector<HTMLParagraphElement>('[data-testid="viewer-file-name"]');
+  if (display === null) {
+    throw new Error("viewer file name display is missing");
+  }
+  return display;
+}
+
 async function fileWithBytes(name: string, bytes: Uint8Array): Promise<File> {
   const copy = new Uint8Array(bytes);
   if (typeof File !== "undefined") {
@@ -271,6 +279,91 @@ describe("startViewerDomUi", () => {
     const status = queryStatusPanel();
     expect(status.hidden).toBe(true);
     expect(status.textContent).toBe("");
+  });
+
+  it("hides the file name display when no document is selected", () => {
+    const app = createFakeViewerApp();
+    const dom = queryViewerDom();
+    startViewerDomUi(dom, app);
+
+    const fileNameDisplay = queryFileNameDisplay();
+    expect(fileNameDisplay.hidden).toBe(true);
+    expect(fileNameDisplay.textContent).toBe("");
+  });
+
+  it("shows the selected file name while converting", () => {
+    const app = createFakeViewerApp();
+    const dom = queryViewerDom();
+    startViewerDomUi(dom, app);
+
+    app.replaceState(documentState("d1", "sample.ps", { kind: "converting" }));
+
+    const fileNameDisplay = queryFileNameDisplay();
+    expect(fileNameDisplay.hidden).toBe(false);
+    expect(fileNameDisplay.textContent).toBe("sample.ps");
+  });
+
+  it("shows the selected file name when the document is ready", () => {
+    const app = createFakeViewerApp();
+    const dom = queryViewerDom();
+    startViewerDomUi(dom, app);
+
+    app.replaceState(documentState("d1", "ready.ps", { kind: "ready" }));
+
+    const fileNameDisplay = queryFileNameDisplay();
+    expect(fileNameDisplay.hidden).toBe(false);
+    expect(fileNameDisplay.textContent).toBe("ready.ps");
+  });
+
+  it("shows the selected file name when the document has an error", () => {
+    const app = createFakeViewerApp();
+    const dom = queryViewerDom();
+    startViewerDomUi(dom, app);
+
+    app.replaceState(
+      documentState("d1", "bad.ps", {
+        kind: "error",
+        error: { kind: "conversion-failed", detail: "failed" },
+      }),
+    );
+
+    const fileNameDisplay = queryFileNameDisplay();
+    expect(fileNameDisplay.hidden).toBe(false);
+    expect(fileNameDisplay.textContent).toBe("bad.ps");
+  });
+
+  it("clears the file name display when the document is cleared", () => {
+    const app = createFakeViewerApp();
+    const dom = queryViewerDom();
+    startViewerDomUi(dom, app);
+
+    app.replaceState(documentState("d1", "sample.ps", { kind: "ready" }));
+    app.replaceState({ documents: [], selectedDocumentId: undefined });
+
+    const fileNameDisplay = queryFileNameDisplay();
+    expect(fileNameDisplay.hidden).toBe(true);
+    expect(fileNameDisplay.textContent).toBe("");
+  });
+
+  it("keeps the file name visible after the file input is reset", async () => {
+    const app = createFakeViewerApp();
+    const bytes = new Uint8Array([37, 33, 80, 83]);
+    const originalOpenPostScript = app.openPostScript.bind(app);
+    app.openPostScript = async (input) => {
+      await originalOpenPostScript(input);
+      app.replaceState(documentState("d1", input.fileName, { kind: "converting" }));
+    };
+    const dom = queryViewerDom();
+    startViewerDomUi(dom, app);
+    const file = await fileWithBytes("demo.ps", bytes);
+
+    dispatchFileSelection(dom.fileInput, file);
+    await flushAsyncWork();
+
+    expect(dom.fileInput.value).toBe("");
+    const fileNameDisplay = queryFileNameDisplay();
+    expect(fileNameDisplay.hidden).toBe(false);
+    expect(fileNameDisplay.textContent).toBe("demo.ps");
   });
 
   it("forwards selected files to the viewer app and resets the input", async () => {
