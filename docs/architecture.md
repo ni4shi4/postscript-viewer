@@ -8,7 +8,7 @@ Hexagonal / Ports and Adaptersで構成されています。
 | 層 | パス | 役割 |
 | --- | --- | --- |
 | Application core | `src/core/` | `domain/`（値・エラー）、`ports/`（インターフェース）、`usecases/`（閲覧フロー）、`state/`（状態とストア） |
-| Driving adapters | `src/adapters/driving/` | UI など、外部から core を駆動する側（画面のコンポーネントは `driving/dom` の Preact のみ） |
+| Driving adapters | `src/adapters/driving/` | UI など、外部から core を駆動する側 |
 | Driven adapters | `src/adapters/driven/` | secondary port の実装 |
 | Composition root | `src/main.ts` | コンポーネントの組み立て |
 
