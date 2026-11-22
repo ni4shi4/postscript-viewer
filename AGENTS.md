@@ -1,2 +1,3 @@
 - 設計・実装・レビュー時は `docs/architecture.md` と `docs/testing.md` を参照する
 - mdファイルに実装の詳細を記載しない。
+- commitメッセージはSemantic Commit Messagesに従う。subjectは日本語で記載する
