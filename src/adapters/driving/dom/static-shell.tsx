@@ -5,6 +5,7 @@ import { useRef } from "preact/hooks";
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import { FileLimitsNotice } from "./file-limits-notice";
 import { AppFooter, type AppFooterProps } from "./footer-source-link";
+import { HistorySidebar } from "./history-sidebar";
 import { useViewerDomUi, ViewerFileName, ViewerStatus } from "./viewer-ui";
 
 export function ToolbarIntro() {
@@ -42,10 +43,10 @@ export function TrustNotice() {
 
 const ViewerMain = memo(function ViewerMain() {
   return (
-    <main class="viewer">
+    <div class="viewer-surface">
       <iframe title="変換された PDF" data-testid="pdf-frame" hidden />
       <div class="pdf-canvas-container" data-testid="pdf-canvas-container" hidden />
-    </main>
+    </div>
   );
 });
 
@@ -77,7 +78,10 @@ export function App({ commitSha, app }: AppProps) {
         <TrustNotice />
         <ViewerStatus state={viewerState} />
       </header>
-      <ViewerMain />
+      <main class="viewer">
+        <HistorySidebar app={app} state={viewerState} />
+        <ViewerMain />
+      </main>
       <footer class="app-footer">
         <AppFooter commitSha={commitSha} />
       </footer>
