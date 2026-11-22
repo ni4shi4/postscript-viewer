@@ -3,7 +3,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,9 +11,9 @@ import { fileURLToPath } from "node:url";
 import {
   GS_GLUE_FILE_NAME,
   GS_WASM_FILE_NAME,
-  GS_WASM_SHA256_FILE,
-  installAssetIfSha256Matches,
+  installGsWasmAsset,
   removeInstalledGsAssets,
+  workersStaticAssetSizeError,
 } from "./gs-wasm-assets.mjs";
 
 const DOCKER_IMAGE = "postscript-viewer-gs-wasm";
@@ -23,7 +23,6 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const dockerContext = path.join(repoRoot, "docker", "ghostscript-wasm");
 const destWasm = path.join(repoRoot, "public", GS_WASM_FILE_NAME);
 const destGlue = path.join(repoRoot, "src", "generated", "ghostscript", GS_GLUE_FILE_NAME);
-const expectedHashPath = path.join(repoRoot, GS_WASM_SHA256_FILE);
 
 /**
  * @param {string[]} args
@@ -82,16 +81,6 @@ function createInstallFailureHandler() {
  * @returns {Promise<number>}
  */
 async function installBuiltArtifacts({ sourceWasm, sourceGlue, failInstall }) {
-  const wasmResult = await installAssetIfSha256Matches({
-    sourcePath: sourceWasm,
-    destPath: destWasm,
-    expectedHashPath,
-    assetFileName: GS_WASM_FILE_NAME,
-  });
-  if (!wasmResult.ok) {
-    return failInstall(wasmResult.exitCode);
-  }
-
   try {
     await assertGlueHasNoDynamicExecution(sourceGlue);
   } catch (error) {
@@ -99,17 +88,24 @@ async function installBuiltArtifacts({ sourceWasm, sourceGlue, failInstall }) {
     return failInstall(1);
   }
 
-  const glueResult = await installAssetIfSha256Matches({
-    sourcePath: sourceGlue,
-    destPath: destGlue,
-    expectedHashPath,
-    assetFileName: GS_GLUE_FILE_NAME,
-  });
-  if (!glueResult.ok) {
-    return failInstall(glueResult.exitCode);
+  const wasmSize = (await stat(sourceWasm)).size;
+  const wasmSizeError = workersStaticAssetSizeError(wasmSize, GS_WASM_FILE_NAME);
+  if (wasmSizeError !== undefined) {
+    console.error(wasmSizeError);
+    return failInstall(1);
   }
 
-  console.log(wasmResult.size);
+  const glueSize = (await stat(sourceGlue)).size;
+  const glueSizeError = workersStaticAssetSizeError(glueSize, GS_GLUE_FILE_NAME);
+  if (glueSizeError !== undefined) {
+    console.error(glueSizeError);
+    return failInstall(1);
+  }
+
+  await installGsWasmAsset({ sourcePath: sourceWasm, destPath: destWasm });
+  await installGsWasmAsset({ sourcePath: sourceGlue, destPath: destGlue });
+
+  console.log(wasmSize);
   return 0;
 }
 

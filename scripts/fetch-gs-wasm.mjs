@@ -1,5 +1,5 @@
 /**
- * Fetch gs.wasm and gs.mjs from a GitHub release, verify SHA-256, and install.
+ * Fetch gs.wasm and gs.mjs from a GitHub release and install into the repo.
  */
 
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import {
   GS_GLUE_FILE_NAME,
   GS_WASM_FILE_NAME,
-  installAssetIfSha256Matches,
+  installGsWasmAsset,
   releaseAssetDownloadUrl,
   removeInstalledGsAssets,
   workersStaticAssetSizeError,
@@ -19,7 +19,6 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const destWasm = path.join(repoRoot, "public", GS_WASM_FILE_NAME);
 const destGlue = path.join(repoRoot, "src", "generated", "ghostscript", GS_GLUE_FILE_NAME);
-const expectedHashPath = path.join(repoRoot, "gs-wasm.sha256");
 
 /** @type {ReadonlyArray<{ fileName: string; destPath: string }>} */
 const RELEASE_ASSETS = [
@@ -76,18 +75,9 @@ async function main() {
     let wasmSize = 0;
     for (const { fileName, destPath } of RELEASE_ASSETS) {
       const tempPath = path.join(tempDir, fileName);
-      const result = await installAssetIfSha256Matches({
-        sourcePath: tempPath,
-        destPath,
-        expectedHashPath,
-        assetFileName: fileName,
-      });
-      if (!result.ok) {
-        await removeInstalledGsAssets({ destWasm, destGlue });
-        return result.exitCode;
-      }
+      const size = await installGsWasmAsset({ sourcePath: tempPath, destPath });
       if (fileName === GS_WASM_FILE_NAME) {
-        wasmSize = result.size;
+        wasmSize = size;
       }
     }
 

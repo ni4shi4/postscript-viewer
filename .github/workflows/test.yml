@@ -58,7 +58,7 @@ jobs:
           path: |
             public/gs.wasm
             src/generated/ghostscript/gs.mjs
-          key: gs-wasm-${{ hashFiles('docker/ghostscript-wasm/**', 'scripts/build-gs-wasm.mjs', 'scripts/gs-wasm-assets.mjs', 'gs-wasm.sha256') }}
+          key: gs-wasm-${{ hashFiles('docker/ghostscript-wasm/**', 'scripts/build-gs-wasm.mjs', 'scripts/gs-wasm-assets.mjs') }}
       - if: steps.gs-wasm.outputs.cache-hit != 'true'
         run: npm run build:wasm
       - run: npx playwright install --with-deps chromium

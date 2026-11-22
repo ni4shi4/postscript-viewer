@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import {
   access,
@@ -22,7 +21,6 @@ const WORKERS_STATIC_ASSET_MAX_BYTES = 25 * 1024 * 1024;
 const GS_WASM_FILE_NAME = "gs.wasm";
 const GS_GLUE_FILE_NAME = "gs.mjs";
 
-const GS_WASM_SHA256_FILE = "gs-wasm.sha256";
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PRODUCTION_FETCH_SCRIPT = path.join(REPO_ROOT, "scripts", "fetch-gs-wasm.mjs");
 const PRODUCTION_ASSETS_MODULE = path.join(REPO_ROOT, "scripts", "gs-wasm-assets.mjs");
@@ -30,7 +28,6 @@ const PRODUCTION_ASSETS_MODULE = path.join(REPO_ROOT, "scripts", "gs-wasm-assets
 type TempRepoLayout = {
   repoRoot: string;
   fetchScript: string;
-  hashFile: string;
   destWasm: string;
   destGlue: string;
   baseUrl: string;
@@ -62,14 +59,6 @@ async function pathExists(filePath: string): Promise<boolean> {
   }
 }
 
-async function sha256HexOfBytes(bytes: Uint8Array): Promise<string> {
-  return createHash("sha256").update(bytes).digest("hex");
-}
-
-function formatHashFile(wasmHash: string, glueHash: string): string {
-  return `${wasmHash}  ${GS_WASM_FILE_NAME}\n${glueHash}  ${GS_GLUE_FILE_NAME}\n`;
-}
-
 async function startAssetServer(
   assets: Record<string, Uint8Array | Buffer>,
 ): Promise<{ server: Server; baseUrl: string }> {
@@ -98,8 +87,6 @@ async function startAssetServer(
 type CreateTempRepoOptions = {
   wasmBytes: Uint8Array;
   glueBytes: Uint8Array;
-  wasmHash?: string;
-  glueHash?: string;
   serverAssets?: Record<string, Uint8Array | Buffer>;
   hashFileContent?: string;
 };
@@ -118,13 +105,8 @@ async function createTempRepo(options: CreateTempRepoOptions): Promise<TempRepoL
   await copyFile(PRODUCTION_FETCH_SCRIPT, fetchScript);
   await copyFile(PRODUCTION_ASSETS_MODULE, path.join(scriptsDir, "gs-wasm-assets.mjs"));
 
-  const hashFile = path.join(repoRoot, GS_WASM_SHA256_FILE);
   if (options.hashFileContent !== undefined) {
-    await writeFile(hashFile, options.hashFileContent);
-  } else {
-    const wasmHash = options.wasmHash ?? (await sha256HexOfBytes(options.wasmBytes));
-    const glueHash = options.glueHash ?? (await sha256HexOfBytes(options.glueBytes));
-    await writeFile(hashFile, formatHashFile(wasmHash, glueHash));
+    await writeFile(path.join(repoRoot, "gs-wasm.sha256"), options.hashFileContent);
   }
 
   const serverAssets: Record<string, Uint8Array | Buffer> = options.serverAssets ?? {
@@ -136,7 +118,6 @@ async function createTempRepo(options: CreateTempRepoOptions): Promise<TempRepoL
   return {
     repoRoot,
     fetchScript,
-    hashFile,
     destWasm: path.join(repoRoot, "public", GS_WASM_FILE_NAME),
     destGlue: path.join(repoRoot, "src", "generated", "ghostscript", GS_GLUE_FILE_NAME),
     baseUrl,
@@ -164,7 +145,7 @@ async function writeOversizedFile(filePath: string): Promise<void> {
 }
 
 describe("fetch-gs-wasm.mjs", () => {
-  it("installs gs.wasm and gs.mjs when SHA-256 matches the hash file", async () => {
+  it("installs gs.wasm and gs.mjs without a hash file", async () => {
     const wasmBytes = new TextEncoder().encode("wasm-test-payload");
     const glueBytes = new TextEncoder().encode("glue-test-payload");
     const layout = await createTempRepo({ wasmBytes, glueBytes });
@@ -178,56 +159,22 @@ describe("fetch-gs-wasm.mjs", () => {
     expect(await readFile(layout.destGlue)).toEqual(Buffer.from(glueBytes));
   });
 
-  it("exits with code 1 and removes existing assets on gs.wasm hash mismatch", async () => {
+  it("installs gs.wasm and gs.mjs even when a stale hash file is present", async () => {
     const wasmBytes = new TextEncoder().encode("wasm-test-payload");
     const glueBytes = new TextEncoder().encode("glue-test-payload");
     const layout = await createTempRepo({
       wasmBytes,
       glueBytes,
-      wasmHash: "0".repeat(64),
-    });
-    await writeFile(layout.destWasm, new TextEncoder().encode("stale wasm"));
-    await writeFile(layout.destGlue, new TextEncoder().encode("stale glue"));
-
-    const exitCode = await runFetchScript(layout);
-
-    expect(exitCode).toBe(1);
-    expect(await pathExists(layout.destWasm)).toBe(false);
-    expect(await pathExists(layout.destGlue)).toBe(false);
-  });
-
-  it("exits with code 1 and removes both assets when gs.mjs hash mismatches", async () => {
-    const wasmBytes = new TextEncoder().encode("wasm-test-payload");
-    const glueBytes = new TextEncoder().encode("glue-test-payload");
-    const wasmHash = await sha256HexOfBytes(wasmBytes);
-    const layout = await createTempRepo({
-      wasmBytes,
-      glueBytes,
-      wasmHash,
-      glueHash: "0".repeat(64),
+      hashFileContent: `${"0".repeat(64)}  ${GS_WASM_FILE_NAME}\n${"0".repeat(64)}  ${GS_GLUE_FILE_NAME}\n`,
     });
 
     const exitCode = await runFetchScript(layout);
 
-    expect(exitCode).toBe(1);
-    expect(await pathExists(layout.destWasm)).toBe(false);
-    expect(await pathExists(layout.destGlue)).toBe(false);
-  });
-
-  it("fails when the hash file format is invalid", async () => {
-    const wasmBytes = new TextEncoder().encode("wasm");
-    const glueBytes = new TextEncoder().encode("glue");
-    const layout = await createTempRepo({
-      wasmBytes,
-      glueBytes,
-      hashFileContent: "not-a-valid-sha256\n",
-    });
-
-    const exitCode = await runFetchScript(layout);
-
-    expect(exitCode).toBe(1);
-    expect(await pathExists(layout.destWasm)).toBe(false);
-    expect(await pathExists(layout.destGlue)).toBe(false);
+    expect(exitCode).toBe(0);
+    expect(await pathExists(layout.destWasm)).toBe(true);
+    expect(await pathExists(layout.destGlue)).toBe(true);
+    expect(await readFile(layout.destWasm)).toEqual(Buffer.from(wasmBytes));
+    expect(await readFile(layout.destGlue)).toEqual(Buffer.from(glueBytes));
   });
 
   it("fails when downloaded gs.wasm exceeds the Workers static asset size limit", async () => {
@@ -240,8 +187,6 @@ describe("fetch-gs-wasm.mjs", () => {
     const layout = await createTempRepo({
       wasmBytes,
       glueBytes,
-      wasmHash: await sha256HexOfBytes(wasmBytes),
-      glueHash: await sha256HexOfBytes(glueBytes),
     });
 
     const exitCode = await runFetchScript(layout);

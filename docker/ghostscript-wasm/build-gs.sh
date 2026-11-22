@@ -62,17 +62,3 @@ emmake make -j"$(nproc)" XE=".mjs" LDFLAGS="${GS_LDFLAGS}"
 
 cp ./bin/gs.mjs "${OUT_DIR}/gs.mjs"
 cp ./bin/gs.wasm "${OUT_DIR}/gs.wasm"
-
-python3 - "${OUT_DIR}/gs.wasm" <<'PY'
-import sys
-
-path = sys.argv[1]
-data = bytearray(open(path, "rb").read())
-needle = bytes.fromhex("016b00000000")
-idx = data.rfind(needle)
-if idx < 2 or data[idx - 4 : idx - 2] != bytes.fromhex("9e29"):
-    raise SystemExit("gs.wasm normalize anchor not found")
-# Zero Emscripten's 2-byte link stamp so repeated builds match.
-data[idx - 2 : idx] = b"\x00\x00"
-open(path, "wb").write(data)
-PY
