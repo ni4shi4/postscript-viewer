@@ -27,6 +27,15 @@ jobs:
       - run: npm ci
       - run: npm run test:small
 
+  lint:
+    needs: approval
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: asdf-vm/actions/install@v4
+      - run: npm ci
+      - run: npm run lint
+
   medium:
     needs: approval
     runs-on: ubuntu-latest
