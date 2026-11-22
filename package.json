@@ -15,8 +15,9 @@
     "preview:e2e": "vite preview --config vite.config.e2e-preview.ts",
     "preview:e2e-servers": "node scripts/start-e2e-preview-servers.mjs",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint && npm run check:deps",
+    "lint": "oxlint && npm run check:deps && npm run check:final-newline",
     "check:deps": "node scripts/check-deps.mjs",
+    "check:final-newline": "editorconfig-checker",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
@@ -29,7 +30,8 @@
   "lint-staged": {
     "*.{ts,mjs}": "oxlint",
     "*.{ts,mjs,html,css}": "oxfmt --check",
-    "!(package-lock).json": "oxfmt --check"
+    "!(package-lock).json": "oxfmt --check",
+    "*": "editorconfig-checker"
   },
   "dependencies": {
     "ghostscript-wasm-esm": "1.0.1",
@@ -40,6 +42,7 @@
     "@playwright/test": "1.65.1",
     "@types/node": "26.6.6",
     "@types/pako": "2.0.4",
+    "editorconfig-checker": "7.0.0",
     "fake-indexeddb": "6.2.8",
     "husky": "9.1.7",
     "jsdom": "31.0.1",

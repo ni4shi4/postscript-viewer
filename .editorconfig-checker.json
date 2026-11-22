@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/editorconfig-checker/editorconfig-checker/master/.editorconfig-checker.schema.json",
+  "Disable": {
+    "Charset": true,
+    "EndOfLine": true,
+    "Indentation": true,
+    "IndentSize": true,
+    "TrimTrailingWhitespace": true,
+    "MaxLineLength": true
+  }
+}
