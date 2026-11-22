@@ -89,3 +89,8 @@ npm run build
     ```bash
     sha256sum public/gs.wasm src/generated/ghostscript/gs.mjs > gs-wasm.sha256
     ```
+2. `main` から Release を作成
+    ```bash
+    gh workflow run "Release Ghostscript WASM" --ref main
+    ```
+3. 取得元の Release タグを変えるときは、タグ設定を更新してからワークフローを実行

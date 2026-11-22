@@ -1,0 +1,47 @@
+name: Release Ghostscript WASM
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_COMMIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Build Ghostscript WASM
+        run: npm run build:wasm
+      - name: Resolve release tag
+        id: tag
+        run: |
+          RELEASE_TAG=$(node --input-type=module -e "import { GS_WASM_RELEASE_TAG } from './scripts/gs-wasm-assets.mjs'; console.log(GS_WASM_RELEASE_TAG)")
+          echo "release_tag=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
+      - name: Create GitHub Release
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.release_tag }}
+        run: |
+          WASM_SHA=$(sha256sum public/gs.wasm | awk '{print $1}')
+          MJS_SHA=$(sha256sum src/generated/ghostscript/gs.mjs | awk '{print $1}')
+          NOTES_FILE=$(mktemp)
+          {
+            echo "Built from commit: ${BUILD_COMMIT_SHA}"
+            echo ""
+            echo "gs.wasm SHA-256: ${WASM_SHA}"
+            echo "gs.mjs SHA-256: ${MJS_SHA}"
+          } > "${NOTES_FILE}"
+          gh release create "${RELEASE_TAG}" \
+            public/gs.wasm \
+            src/generated/ghostscript/gs.mjs \
+            gs-wasm.sha256 \
+            --title "Ghostscript WASM ${RELEASE_TAG}" \
+            --notes-file "${NOTES_FILE}"
+          rm -f "${NOTES_FILE}"
