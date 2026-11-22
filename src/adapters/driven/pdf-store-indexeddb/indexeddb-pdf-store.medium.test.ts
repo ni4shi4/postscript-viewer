@@ -3,12 +3,18 @@ import "fake-indexeddb/auto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MAX_PDF_HISTORY_ENTRIES } from "../../../core/domain/limits";
-import type { PdfStoreEntry } from "../../../core/ports/pdf-store";
 import { PDF_STORE_MIGRATED_LATEST_ID, createIndexedDbPdfStore } from "./indexeddb-pdf-store";
 
 const PDF_STORE_DB_NAME = "postscript-viewer-pdf";
 const PDF_STORE_LEGACY_OBJECT_STORE_NAME = "pdf";
+const PDF_STORE_META_OBJECT_STORE_NAME = "pdf-history-meta";
+const PDF_STORE_BODY_OBJECT_STORE_NAME = "pdf-history-body";
 const PDF_STORE_LEGACY_ENTRY_KEY = "latest";
+
+type LegacyLatestPdfEntry = {
+  fileName: string;
+  pdf: Uint8Array;
+};
 
 const SAMPLE_PDF = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52]);
 const OTHER_PDF = new Uint8Array([37, 80, 68, 70, 45, 50, 46, 48]);
@@ -33,7 +39,55 @@ async function deleteAllIndexedDatabases(): Promise<void> {
   );
 }
 
-async function seedVersionOneLatest(entry: PdfStoreEntry): Promise<void> {
+async function readObjectStoreNames(): Promise<string[]> {
+  return new Promise((resolve) => {
+    const request = indexedDB.open(PDF_STORE_DB_NAME);
+    request.addEventListener("success", () => {
+      const db = request.result;
+      const names = [...db.objectStoreNames];
+      db.close();
+      resolve(names);
+    });
+    request.addEventListener("error", () => {
+      resolve([]);
+    });
+  });
+}
+
+async function seedVersionOneEmpty(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    const request = indexedDB.open(PDF_STORE_DB_NAME, 1);
+    request.addEventListener("upgradeneeded", () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PDF_STORE_LEGACY_OBJECT_STORE_NAME)) {
+        db.createObjectStore(PDF_STORE_LEGACY_OBJECT_STORE_NAME);
+      }
+    });
+    request.addEventListener("success", () => {
+      request.result.close();
+      resolve();
+    });
+    request.addEventListener("error", () => {
+      resolve();
+    });
+  });
+}
+
+async function readDatabaseVersion(): Promise<number | undefined> {
+  return new Promise((resolve) => {
+    const request = indexedDB.open(PDF_STORE_DB_NAME);
+    request.addEventListener("success", () => {
+      const version = request.result.version;
+      request.result.close();
+      resolve(version);
+    });
+    request.addEventListener("error", () => {
+      resolve(undefined);
+    });
+  });
+}
+
+async function seedVersionOneLatest(entry: LegacyLatestPdfEntry): Promise<void> {
   await new Promise<void>((resolve) => {
     const request = indexedDB.open(PDF_STORE_DB_NAME, 1);
     request.addEventListener("upgradeneeded", () => {
@@ -67,6 +121,50 @@ async function seedVersionOneLatest(entry: PdfStoreEntry): Promise<void> {
   });
 }
 
+async function seedVersionTwoHistory(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    const request = indexedDB.open(PDF_STORE_DB_NAME, 2);
+    request.addEventListener("upgradeneeded", () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(PDF_STORE_LEGACY_OBJECT_STORE_NAME)) {
+        db.createObjectStore(PDF_STORE_LEGACY_OBJECT_STORE_NAME);
+      }
+      if (!db.objectStoreNames.contains(PDF_STORE_META_OBJECT_STORE_NAME)) {
+        db.createObjectStore(PDF_STORE_META_OBJECT_STORE_NAME);
+      }
+      if (!db.objectStoreNames.contains(PDF_STORE_BODY_OBJECT_STORE_NAME)) {
+        db.createObjectStore(PDF_STORE_BODY_OBJECT_STORE_NAME);
+      }
+    });
+    request.addEventListener("success", () => {
+      const db = request.result;
+      const transaction = db.transaction(
+        [PDF_STORE_META_OBJECT_STORE_NAME, PDF_STORE_BODY_OBJECT_STORE_NAME],
+        "readwrite",
+      );
+      transaction
+        .objectStore(PDF_STORE_META_OBJECT_STORE_NAME)
+        .put({ id: "hist-1", fileName: "v2.ps", savedAt: 42, order: 0 }, "hist-1");
+      transaction.objectStore(PDF_STORE_BODY_OBJECT_STORE_NAME).put(SAMPLE_PDF, "hist-1");
+      transaction.addEventListener("complete", () => {
+        db.close();
+        resolve();
+      });
+      transaction.addEventListener("error", () => {
+        db.close();
+        resolve();
+      });
+      transaction.addEventListener("abort", () => {
+        db.close();
+        resolve();
+      });
+    });
+    request.addEventListener("error", () => {
+      resolve();
+    });
+  });
+}
+
 describe("createIndexedDbPdfStore", () => {
   beforeEach(async () => {
     await deleteAllIndexedDatabases();
@@ -76,38 +174,11 @@ describe("createIndexedDbPdfStore", () => {
     vi.unstubAllGlobals();
   });
 
-  it("persists the latest entry across save, load, and clear", async () => {
-    const store = createIndexedDbPdfStore();
-
-    await store.save({ fileName: "doc.ps", pdf: SAMPLE_PDF });
-
-    const loaded = await store.load();
-    expect(loaded).toEqual({
-      fileName: "doc.ps",
-      pdf: SAMPLE_PDF,
-    });
-
-    await store.save({ fileName: "other.ps", pdf: OTHER_PDF });
-
-    const reloaded = await store.load();
-    expect(reloaded).toEqual({
-      fileName: "other.ps",
-      pdf: OTHER_PDF,
-    });
-
-    await store.clear();
-
-    expect(await store.load()).toBeUndefined();
-  });
-
   it("does not throw when IndexedDB is unavailable", async () => {
     vi.stubGlobal("indexedDB", undefined);
 
     const store = createIndexedDbPdfStore();
 
-    await expect(store.save({ fileName: "doc.ps", pdf: SAMPLE_PDF })).resolves.toBeUndefined();
-    await expect(store.clear()).resolves.toBeUndefined();
-    await expect(store.load()).resolves.toBeUndefined();
     await expect(
       store.put({
         id: "a",
@@ -225,7 +296,7 @@ describe("createIndexedDbPdfStore", () => {
     expect(listed.map((entry) => entry.id)).toContain("tie-overflow");
   });
 
-  it("migrates a version 1 latest entry into history", async () => {
+  it("migrates a version 1 latest entry into history and removes the legacy store", async () => {
     await seedVersionOneLatest({ fileName: "legacy.ps", pdf: SAMPLE_PDF });
 
     const store = createIndexedDbPdfStore();
@@ -247,6 +318,48 @@ describe("createIndexedDbPdfStore", () => {
       pdf: SAMPLE_PDF,
     });
 
-    expect(await store.load()).toEqual({ fileName: "legacy.ps", pdf: SAMPLE_PDF });
+    const storeNames = await readObjectStoreNames();
+    expect(storeNames).not.toContain(PDF_STORE_LEGACY_OBJECT_STORE_NAME);
+    expect(storeNames).toContain(PDF_STORE_META_OBJECT_STORE_NAME);
+    expect(storeNames).toContain(PDF_STORE_BODY_OBJECT_STORE_NAME);
+  });
+
+  it("opens an empty version 1 database, upgrades to version 3, and removes the legacy store", async () => {
+    await seedVersionOneEmpty();
+
+    const store = createIndexedDbPdfStore();
+
+    expect(await store.list()).toEqual([]);
+    expect(await readDatabaseVersion()).toBe(3);
+
+    const storeNames = await readObjectStoreNames();
+    expect(storeNames).not.toContain(PDF_STORE_LEGACY_OBJECT_STORE_NAME);
+
+    await store.put({ id: "after-upgrade", fileName: "after.ps", savedAt: 1, pdf: SAMPLE_PDF });
+    expect(await store.get("after-upgrade")).toEqual({
+      id: "after-upgrade",
+      fileName: "after.ps",
+      savedAt: 1,
+      pdf: SAMPLE_PDF,
+    });
+  });
+
+  it("keeps version 2 history on upgrade and removes the legacy store", async () => {
+    await seedVersionTwoHistory();
+
+    const store = createIndexedDbPdfStore();
+
+    expect(await store.list()).toEqual([{ id: "hist-1", fileName: "v2.ps", savedAt: 42 }]);
+    expect(await store.get("hist-1")).toEqual({
+      id: "hist-1",
+      fileName: "v2.ps",
+      savedAt: 42,
+      pdf: SAMPLE_PDF,
+    });
+
+    const storeNames = await readObjectStoreNames();
+    expect(storeNames).not.toContain(PDF_STORE_LEGACY_OBJECT_STORE_NAME);
+    expect(storeNames).toContain(PDF_STORE_META_OBJECT_STORE_NAME);
+    expect(storeNames).toContain(PDF_STORE_BODY_OBJECT_STORE_NAME);
   });
 });

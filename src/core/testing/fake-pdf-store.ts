@@ -3,7 +3,6 @@ import {
   pdfHistoryIdsToEvict,
   sortPdfHistoryMetasNewestFirst,
   type PdfStore,
-  type PdfStoreEntry,
   type PdfStoreHistoryEntry,
   type PdfStoreHistoryMeta,
   type PdfStoreHistoryMetaWithOrder,
@@ -14,10 +13,7 @@ type FakeHistoryRecord = PdfStoreHistoryMetaWithOrder & {
 };
 
 export type FakePdfStore = PdfStore & {
-  getStored(): PdfStoreEntry | undefined;
-  setStored(entry: PdfStoreEntry | undefined): void;
   setSaveDelay(delay: () => Promise<void>): void;
-  setLoadDelay(delay: () => Promise<void>): void;
   setListDelay(delay: () => Promise<void>): void;
 };
 
@@ -41,28 +37,11 @@ function putHistoryRecord(
 }
 
 export function createFakePdfStore(): FakePdfStore {
-  let stored: PdfStoreEntry | undefined;
   const history = new Map<string, FakeHistoryRecord>();
   let saveDelay: (() => Promise<void>) | undefined;
-  let loadDelay: (() => Promise<void>) | undefined;
   let listDelay: (() => Promise<void>) | undefined;
 
   return {
-    async save(entry) {
-      if (saveDelay !== undefined) {
-        await saveDelay();
-      }
-      stored = entry;
-    },
-    async load() {
-      if (loadDelay !== undefined) {
-        await loadDelay();
-      }
-      return stored;
-    },
-    async clear() {
-      stored = undefined;
-    },
     async put(entry) {
       if (saveDelay !== undefined) {
         await saveDelay();
@@ -89,17 +68,8 @@ export function createFakePdfStore(): FakePdfStore {
     async removeAll() {
       history.clear();
     },
-    getStored() {
-      return stored;
-    },
-    setStored(entry) {
-      stored = entry;
-    },
     setSaveDelay(delay) {
       saveDelay = delay;
-    },
-    setLoadDelay(delay) {
-      loadDelay = delay;
     },
     setListDelay(delay) {
       listDelay = delay;

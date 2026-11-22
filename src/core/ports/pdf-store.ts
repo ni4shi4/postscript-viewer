@@ -1,10 +1,5 @@
 import { MAX_PDF_HISTORY_ENTRIES } from "../domain/limits";
 
-export type PdfStoreEntry = {
-  fileName: string;
-  pdf: Uint8Array;
-};
-
 export type PdfStoreHistoryMeta = {
   id: string;
   fileName: string;
@@ -20,9 +15,6 @@ export type PdfStoreHistoryMetaWithOrder = PdfStoreHistoryMeta & {
 };
 
 export type PdfStore = {
-  save(entry: PdfStoreEntry): Promise<void>;
-  load(): Promise<PdfStoreEntry | undefined>;
-  clear(): Promise<void>;
   put(entry: PdfStoreHistoryEntry): Promise<void>;
   list(): Promise<PdfStoreHistoryMeta[]>;
   get(id: string): Promise<PdfStoreHistoryEntry | undefined>;
