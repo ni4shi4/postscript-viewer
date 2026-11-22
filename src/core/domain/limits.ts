@@ -4,6 +4,7 @@ const SECOND_MS = 1000;
 export const MAX_POSTSCRIPT_INPUT_BYTES = 32 * MEBIBYTE;
 export const MAX_DECOMPRESSED_POSTSCRIPT_BYTES = 32 * MEBIBYTE;
 export const MAX_CONVERSION_DURATION_MS = 60 * SECOND_MS;
+export const MAX_PDF_HISTORY_ENTRIES = 10;
 
 export type ByteLimitKind = "input" | "decompressed";
 
