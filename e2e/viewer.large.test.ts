@@ -185,7 +185,7 @@ test("fits the header, viewer surface and footer into the viewport for the PDF p
   const initialLayout = await readViewerSurfaceLayout(page);
   expectViewerSurfaceFitsViewportWithToolbarAndFooter(initialLayout);
   expectViewerSurfaceBetweenToolbarAndFooterWithinViewport(initialLayout);
-  expectHistorySidebarMatchesViewerSurfaceHeight(initialLayout);
+  expect(initialLayout.historySidebar).toBeNull();
 
   await convertPostScriptViaFilePicker(page, minimalPsPath);
 
@@ -373,7 +373,7 @@ test("reflects history deletions in the sidebar and clears the preview when the 
 
   await page.getByTestId("history-clear-all").click();
   await expect(page.getByTestId("history-item")).toHaveCount(0);
-  await expect(page.getByTestId("history-empty")).toBeVisible();
+  await expect(page.getByTestId("history-sidebar")).toHaveCount(0);
   await expect(page.getByTestId("pdf-frame")).toBeHidden();
   await expect(page.getByTestId("drop-card")).toBeVisible();
 });
@@ -443,4 +443,24 @@ test.describe("when built-in PDF viewer is unavailable", () => {
       minimalBaseName,
     );
   });
+});
+
+test("toggles the history sidebar into a rail and keeps the state after a reload", async ({
+  page,
+}) => {
+  await expect(page.getByTestId("history-sidebar")).toHaveCount(0);
+  await convertPostScriptViaFilePicker(page, minimalPsPath);
+
+  await expect(page.getByTestId("history-convert-another")).toBeVisible();
+  await page.getByRole("button", { name: "履歴を閉じる" }).click();
+  await expect(page.getByTestId("history-item")).toHaveCount(0);
+  await expect(page.getByTestId("history-rail-convert")).toBeVisible();
+
+  await page.reload();
+  await expectPdfFrameShowsBlobPdf(page);
+  await expect(page.getByRole("button", { name: "履歴を開く" })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  await expect(page.getByTestId("history-item")).toHaveCount(0);
 });

@@ -2,7 +2,7 @@
 
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import type { ViewerDocument, ViewerState } from "../../../core/state/viewer-state";
@@ -99,6 +99,29 @@ function queryHistorySidebar(): HTMLElement {
   return sidebar;
 }
 
+function queryToggle(): HTMLButtonElement {
+  const toggle = document.querySelector<HTMLButtonElement>('[data-testid="history-toggle"]');
+  if (toggle === null) {
+    throw new Error("history toggle is missing");
+  }
+  return toggle;
+}
+
+function countPickerOpens(): { count(): number } {
+  const input = document.querySelector<HTMLInputElement>('[data-testid="file-input"]');
+  let count = 0;
+  input?.addEventListener("click", () => {
+    count += 1;
+  });
+  return { count: () => count };
+}
+
+function clickToggle(): void {
+  act(() => {
+    queryToggle().click();
+  });
+}
+
 describe("history sidebar helpers", () => {
   it("formats savedAt for display", () => {
     const label = formatHistorySavedAt(Date.UTC(2024, 5, 15, 9, 30));
@@ -127,15 +150,28 @@ describe("history sidebar helpers", () => {
 describe("history sidebar UI", () => {
   beforeEach(() => {
     document.body.replaceChildren();
+    window.localStorage.clear();
   });
 
-  it("shows an empty state when there is no history", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("does not show the sidebar when there is no history", () => {
     const app = createFakeViewerApp();
     mountApp(app);
 
-    expect(queryHistorySidebar()).toBeTruthy();
-    expect(document.querySelector('[data-testid="history-empty"]')).not.toBeNull();
-    expect(document.querySelector('[data-testid="history-clear-all"]')).toBeNull();
+    expect(document.querySelector('[data-testid="history-sidebar"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("変換済みの履歴はまだありません");
+  });
+
+  it("shows the sidebar once at least one entry exists", () => {
+    const app = createFakeViewerApp();
+    mountApp(app);
+    replaceViewerState(app, historyDocument("doc-a", "first.ps", 1, false));
+
+    expect(queryHistorySidebar().textContent).toContain("変換履歴");
+    expect(document.querySelectorAll('[data-testid="history-item"]')).toHaveLength(1);
   });
 
   it("renders history entries with selection highlight", () => {
@@ -232,5 +268,116 @@ describe("history sidebar UI", () => {
     });
 
     expect(app.getClearHistoryCalls()).toBe(1);
+  });
+
+  it("is open by default with a close button exposing aria-expanded", () => {
+    const app = createFakeViewerApp();
+    mountApp(app);
+    replaceViewerState(app, historyDocument("doc-a", "a.ps", 1, false));
+
+    const toggle = queryToggle();
+    expect(toggle.getAttribute("aria-label")).toBe("履歴を閉じる");
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(document.querySelectorAll('[data-testid="history-item"]')).toHaveLength(1);
+  });
+
+  it("collapses to a rail with a labelled open button and expands again", () => {
+    const app = createFakeViewerApp();
+    mountApp(app);
+    replaceViewerState(app, historyDocument("doc-a", "a.ps", 1, false));
+
+    clickToggle();
+    expect(document.querySelectorAll('[data-testid="history-item"]')).toHaveLength(0);
+    expect(queryToggle().getAttribute("aria-expanded")).toBe("false");
+    expect(queryToggle().textContent).toContain("履歴");
+
+    clickToggle();
+    expect(document.querySelectorAll('[data-testid="history-item"]')).toHaveLength(1);
+    expect(queryToggle().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("restores the collapsed state after remounting", () => {
+    const app = createFakeViewerApp();
+    mountApp(app);
+    replaceViewerState(app, historyDocument("doc-a", "a.ps", 1, false));
+    clickToggle();
+
+    const remounted = createFakeViewerApp(historyDocument("doc-a", "a.ps", 1, false));
+    mountApp(remounted);
+    expect(document.querySelectorAll('[data-testid="history-item"]')).toHaveLength(0);
+    expect(queryToggle().getAttribute("aria-expanded")).toBe("false");
+
+    clickToggle();
+    mountApp(createFakeViewerApp(historyDocument("doc-a", "a.ps", 1, false)));
+    expect(document.querySelectorAll('[data-testid="history-item"]')).toHaveLength(1);
+  });
+
+  it("keeps working when localStorage throws", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
+    const app = createFakeViewerApp();
+    mountApp(app);
+    replaceViewerState(app, historyDocument("doc-a", "a.ps", 1, false));
+
+    expect(document.querySelectorAll('[data-testid="history-item"]')).toHaveLength(1);
+    clickToggle();
+    expect(document.querySelectorAll('[data-testid="history-item"]')).toHaveLength(0);
+  });
+
+  describe("convert another file buttons", () => {
+    it("shows the button below the list only while a PDF is displayed and opens the picker", () => {
+      const app = createFakeViewerApp();
+      mountApp(app);
+      const opens = countPickerOpens();
+
+      replaceViewerState(app, historyDocument("doc-a", "a.ps", 1, false));
+      expect(document.querySelector('[data-testid="history-convert-another"]')).toBeNull();
+
+      replaceViewerState(app, historyDocument("doc-a", "a.ps", 1, true));
+      const button = document.querySelector<HTMLButtonElement>(
+        '[data-testid="history-convert-another"]',
+      );
+      expect(button?.textContent).toContain("別のファイルを変換");
+      act(() => {
+        button?.click();
+      });
+      expect(opens.count()).toBe(1);
+    });
+
+    it("shows the rail button only while a PDF is displayed and opens the picker", () => {
+      const app = createFakeViewerApp();
+      mountApp(app);
+      const opens = countPickerOpens();
+      replaceViewerState(app, historyDocument("doc-a", "a.ps", 1, false));
+      clickToggle();
+      expect(document.querySelector('[data-testid="history-rail-convert"]')).toBeNull();
+
+      replaceViewerState(app, historyDocument("doc-a", "a.ps", 1, true));
+      const button = document.querySelector<HTMLButtonElement>(
+        '[data-testid="history-rail-convert"]',
+      );
+      expect(button?.textContent).toContain("変換する");
+      act(() => {
+        button?.click();
+      });
+      expect(opens.count()).toBe(1);
+    });
+  });
+
+  it("prevents the browser default when files are dropped on the sidebar", () => {
+    const app = createFakeViewerApp();
+    mountApp(app);
+    replaceViewerState(app, historyDocument("doc-a", "a.ps", 1, true));
+
+    for (const type of ["dragover", "drop"] as const) {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "dataTransfer", { value: { types: ["Files"], files: [] } });
+      queryHistorySidebar().dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+    }
   });
 });

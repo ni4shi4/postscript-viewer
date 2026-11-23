@@ -214,6 +214,23 @@ function hasDraggedFiles(event: DragEvent): boolean {
   return Array.from(event.dataTransfer?.types ?? []).includes("Files");
 }
 
+// 表示領域の外（サイドバーなど）にドロップしても、ブラウザが既定動作でファイルを開かないようにする。
+export function usePreventBrowserFileDrop(): void {
+  useEffect(() => {
+    const prevent = (event: DragEvent): void => {
+      if (hasDraggedFiles(event)) {
+        event.preventDefault();
+      }
+    };
+    document.addEventListener("dragover", prevent);
+    document.addEventListener("drop", prevent);
+    return () => {
+      document.removeEventListener("dragover", prevent);
+      document.removeEventListener("drop", prevent);
+    };
+  }, []);
+}
+
 export type FileDropTarget = {
   dragging: boolean;
   handlers: {

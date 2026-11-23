@@ -58,10 +58,21 @@ describe("static shell toolbar layout", () => {
     expect(card!.textContent).toContain("PostScript ファイルをここにドロップ");
     expect(card!.textContent).toContain(".ps / .ps.gz に対応しています");
 
-    const fileInput = card!.querySelector<HTMLInputElement>('[data-testid="file-input"]');
+    const fileInput = document.querySelector<HTMLInputElement>('[data-testid="file-input"]');
     expect(fileInput).not.toBeNull();
     expect(fileInput!.accept).toBe(".ps,.gz");
-    expect(fileInput!.closest("label")?.textContent).toContain("ファイルを選択");
+    // カードが隠れても動くよう、input はカードの外に常に存在する。
+    expect(card!.contains(fileInput)).toBe(false);
+    const pickButton = Array.from(card!.querySelectorAll("button")).find(
+      (button) => button.textContent === "ファイルを選択",
+    );
+    expect(pickButton).toBeDefined();
+    let clicked = 0;
+    fileInput!.addEventListener("click", () => {
+      clicked += 1;
+    });
+    pickButton!.click();
+    expect(clicked).toBe(1);
 
     for (const id of ["file-limits-notice", "privacy-notice", "trust-notice"] as const) {
       expect(card!.querySelector(`#${id}`)).not.toBeNull();

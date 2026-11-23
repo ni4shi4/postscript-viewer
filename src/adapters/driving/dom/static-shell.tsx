@@ -1,6 +1,5 @@
 import { memo } from "preact/compat";
 import { render } from "preact";
-import type { Ref } from "preact";
 import { useRef } from "preact/hooks";
 
 import type { ViewerApp } from "../../../core/ports/viewer-app";
@@ -8,7 +7,13 @@ import { selectedViewerDocument, type ViewerState } from "../../../core/state/vi
 import { FileLimitsNotice } from "./file-limits-notice";
 import { AppFooter, type AppFooterProps } from "./footer-source-link";
 import { HistorySidebar } from "./history-sidebar";
-import { useFileDropTarget, useViewerDomUi, ViewerFileName, ViewerStatus } from "./viewer-ui";
+import {
+  useFileDropTarget,
+  usePreventBrowserFileDrop,
+  useViewerDomUi,
+  ViewerFileName,
+  ViewerStatus,
+} from "./viewer-ui";
 
 export function ToolbarIntro() {
   return (
@@ -88,13 +93,7 @@ function DropOverlay({ state }: { state: ViewerState }) {
   );
 }
 
-function DropCard({
-  state,
-  fileInputRef,
-}: {
-  state: ViewerState;
-  fileInputRef: Ref<HTMLInputElement>;
-}) {
+function DropCard({ state, onPickFile }: { state: ViewerState; onPickFile: () => void }) {
   return (
     <div class="drop-stage" data-testid="drop-card" hidden={isPdfShown(state)}>
       <section class="drop-card" aria-labelledby="drop-card-heading">
@@ -120,17 +119,9 @@ function DropCard({
         </h2>
         <p class="drop-card__formats">.ps / .ps.gz に対応しています</p>
         <p class="drop-card__or drop-card__pointer-only">または</p>
-        <label class="btn-primary">
+        <button type="button" class="btn-primary" onClick={onPickFile}>
           ファイルを選択
-          <input
-            type="file"
-            accept=".ps,.gz"
-            class="file-picker__input"
-            data-testid="file-input"
-            aria-describedby="file-limits-notice privacy-notice trust-notice"
-            ref={fileInputRef}
-          />
-        </label>
+        </button>
         <div class="drop-card__document">
           <ViewerFileName state={state} />
           <ViewerStatus state={state} />
@@ -153,6 +144,10 @@ export function App({ commitSha, app }: AppProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const viewerState = useViewerDomUi(app, fileInputRef);
   const dropTarget = useFileDropTarget(app);
+  usePreventBrowserFileDrop();
+  const openFilePicker = (): void => {
+    fileInputRef.current?.click();
+  };
 
   return (
     <>
@@ -160,7 +155,21 @@ export function App({ commitSha, app }: AppProps) {
         <ToolbarIntro />
       </header>
       <main class="viewer">
-        <HistorySidebar app={app} state={viewerState} />
+        <input
+          type="file"
+          accept=".ps,.gz"
+          class="file-picker__input"
+          data-testid="file-input"
+          aria-label="PostScript ファイルを選択"
+          aria-describedby="file-limits-notice privacy-notice trust-notice"
+          ref={fileInputRef}
+        />
+        <HistorySidebar
+          app={app}
+          state={viewerState}
+          canConvertAnother={isPdfShown(viewerState)}
+          onPickFile={openFilePicker}
+        />
         <div
           class="viewer-surface"
           data-testid="viewer-surface"
@@ -168,7 +177,7 @@ export function App({ commitSha, app }: AppProps) {
           {...dropTarget.handlers}
         >
           <ViewerMain />
-          <DropCard state={viewerState} fileInputRef={fileInputRef} />
+          <DropCard state={viewerState} onPickFile={openFilePicker} />
           {dropTarget.dragging ? <DropOverlay state={viewerState} /> : null}
         </div>
       </main>
