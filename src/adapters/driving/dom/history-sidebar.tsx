@@ -1,4 +1,5 @@
 import type { ComponentChildren } from "preact";
+import { useEffect, useRef } from "preact/hooks";
 
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import type { ViewerDocument, ViewerState } from "../../../core/state/viewer-state";
@@ -48,6 +49,15 @@ function Svg({ children, width = 20 }: { children: ComponentChildren; width?: nu
   );
 }
 
+export function ClockIcon() {
+  return (
+    <Svg>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </Svg>
+  );
+}
+
 function PanelIcon() {
   return (
     <Svg>
@@ -57,7 +67,7 @@ function PanelIcon() {
   );
 }
 
-function PlusIcon() {
+export function PlusIcon() {
   return (
     <Svg>
       <path d="M12 5v14M5 12h14" />
@@ -138,26 +148,7 @@ export function HistorySidebar({ app, state, canConvertAnother, onPickFile }: Hi
         </button>
       </div>
       <div class="history-sidebar__scroll">
-        <ul class="history-sidebar__list">
-          {entries.map((entry) => (
-            <HistorySidebarItem
-              key={entry.id}
-              app={app}
-              entry={entry}
-              selected={state.selectedDocumentId === entry.id}
-            />
-          ))}
-        </ul>
-        <button
-          type="button"
-          class="history-sidebar__clear-all"
-          data-testid="history-clear-all"
-          onClick={() => {
-            invokeViewerApp(app, (viewerApp) => viewerApp.clearHistory());
-          }}
-        >
-          すべて削除
-        </button>
+        <HistoryList app={app} state={state} entries={entries} />
         {canConvertAnother ? (
           <div class="history-sidebar__add">
             <button
@@ -176,13 +167,135 @@ export function HistorySidebar({ app, state, canConvertAnother, onPickFile }: Hi
   );
 }
 
+type HistoryListProps = {
+  app: ViewerApp | undefined;
+  state: ViewerState;
+  entries: ViewerDocument[];
+  onSelect?: () => void;
+};
+
+function HistoryList({ app, state, entries, onSelect }: HistoryListProps) {
+  return (
+    <>
+      <ul class="history-sidebar__list">
+        {entries.map((entry) => (
+          <HistorySidebarItem
+            key={entry.id}
+            app={app}
+            entry={entry}
+            selected={state.selectedDocumentId === entry.id}
+            onSelect={onSelect}
+          />
+        ))}
+      </ul>
+      <button
+        type="button"
+        class="history-sidebar__clear-all"
+        data-testid="history-clear-all"
+        onClick={() => {
+          invokeViewerApp(app, (viewerApp) => viewerApp.clearHistory());
+        }}
+      >
+        すべて削除
+      </button>
+    </>
+  );
+}
+
+const FOCUSABLE_SELECTOR = "button:not([disabled]), [href], input, [tabindex]:not([tabindex='-1'])";
+
+export type HistoryDrawerProps = {
+  app: ViewerApp | undefined;
+  state: ViewerState;
+  open: boolean;
+  onClose: () => void;
+};
+
+// スマホ用。PDF の上に重なる右側のドロワー。開閉は呼び出し側の一時的な状態で、保存しない。
+export function HistoryDrawer({ app, state, open, onClose }: HistoryDrawerProps) {
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const entries = readyHistoryDocuments(state);
+  const visible = open && entries.length > 0;
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+    drawerRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") {
+        return;
+      }
+      const drawer = drawerRef.current;
+      if (drawer === null) {
+        return;
+      }
+      const focusable = Array.from(drawer.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (first === undefined || last === undefined) {
+        event.preventDefault();
+        return;
+      }
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || active === drawer)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (active !== null && !drawer.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [visible, onClose]);
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <>
+      <div class="history-drawer__scrim" data-testid="history-drawer-scrim" onClick={onClose} />
+      <div
+        id="history-drawer"
+        class="history-drawer"
+        data-testid="history-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="history-drawer-heading"
+        tabIndex={-1}
+        ref={drawerRef}
+      >
+        <h2 id="history-drawer-heading" class="history-sidebar__heading">
+          変換履歴
+        </h2>
+        <div class="history-sidebar__scroll">
+          <HistoryList app={app} state={state} entries={entries} onSelect={onClose} />
+        </div>
+      </div>
+    </>
+  );
+}
+
 type HistorySidebarItemProps = {
   app: ViewerApp | undefined;
   entry: ViewerDocument;
   selected: boolean;
+  onSelect?: () => void;
 };
 
-function HistorySidebarItem({ app, entry, selected }: HistorySidebarItemProps) {
+function HistorySidebarItem({ app, entry, selected, onSelect }: HistorySidebarItemProps) {
   const savedAt = entry.savedAt;
   if (savedAt === undefined) {
     return null;
@@ -204,6 +317,7 @@ function HistorySidebarItem({ app, entry, selected }: HistorySidebarItemProps) {
         aria-current={selected ? "true" : undefined}
         onClick={() => {
           invokeViewerApp(app, (viewerApp) => viewerApp.selectDocument(entry.id));
+          onSelect?.();
         }}
       >
         <span class="history-item__file-icon" aria-hidden="true">

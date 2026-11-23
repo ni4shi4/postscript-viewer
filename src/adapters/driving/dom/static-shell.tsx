@@ -1,12 +1,19 @@
 import { memo } from "preact/compat";
 import { render } from "preact";
-import { useRef } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import { selectedViewerDocument, type ViewerState } from "../../../core/state/viewer-state";
 import { FileLimitsNotice } from "./file-limits-notice";
 import { AppFooter, type AppFooterProps } from "./footer-source-link";
-import { HistorySidebar } from "./history-sidebar";
+import { useCompactViewport } from "./compact-viewport";
+import {
+  ClockIcon,
+  HistoryDrawer,
+  HistorySidebar,
+  PlusIcon,
+  readyHistoryDocuments,
+} from "./history-sidebar";
 import {
   useFileDropTarget,
   usePreventBrowserFileDrop,
@@ -15,17 +22,63 @@ import {
   ViewerStatus,
 } from "./viewer-ui";
 
-export function ToolbarIntro() {
+const DESCRIPTION = "PostScript ファイルをブラウザ内で PDF に変換して表示します";
+
+export function ToolbarIntro({ compact = false }: { compact?: boolean }) {
   return (
     <div class="toolbar-intro">
       <span class="logo-mark" aria-hidden="true">
         PS
       </span>
       <h1>PostScript ビューア</h1>
-      <span class="toolbar-intro__divider" aria-hidden="true" />
-      <p class="toolbar-intro__description">
-        PostScript ファイルをブラウザ内で PDF に変換して表示します
-      </p>
+      {compact ? null : (
+        <>
+          <span class="toolbar-intro__divider" aria-hidden="true" />
+          <p class="toolbar-intro__description">{DESCRIPTION}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+type CompactToolbarActionsProps = {
+  showHistory: boolean;
+  historyOpen: boolean;
+  showConvert: boolean;
+  historyButtonRef: { current: HTMLButtonElement | null };
+  onToggleHistory: () => void;
+  onPickFile: () => void;
+};
+
+function CompactToolbarActions(props: CompactToolbarActionsProps) {
+  return (
+    <div class="toolbar-actions">
+      {props.showHistory ? (
+        <button
+          type="button"
+          class="toolbar-button"
+          data-testid="history-drawer-button"
+          aria-haspopup="dialog"
+          aria-expanded={props.historyOpen}
+          aria-controls="history-drawer"
+          ref={props.historyButtonRef}
+          onClick={props.onToggleHistory}
+        >
+          <ClockIcon />
+          履歴
+        </button>
+      ) : null}
+      {props.showConvert ? (
+        <button
+          type="button"
+          class="btn-primary toolbar-button toolbar-button--primary"
+          data-testid="compact-convert"
+          onClick={props.onPickFile}
+        >
+          <PlusIcon />
+          変換
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -149,10 +202,51 @@ export function App({ commitSha, app }: AppProps) {
     fileInputRef.current?.click();
   };
 
+  const compact = useCompactViewport();
+  // スマホのドロワー開閉は一時的な状態。PC のサイドバーの保存値（localStorage）とは独立している。
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const historyButtonRef = useRef<HTMLButtonElement>(null);
+  const hasHistory = readyHistoryDocuments(viewerState).length > 0;
+  const drawerShown = compact && hasHistory && drawerOpen;
+  const closeDrawer = useCallback((): void => {
+    setDrawerOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!compact || !hasHistory) {
+      setDrawerOpen(false);
+    }
+  }, [compact, hasHistory]);
+
+  const wasDrawerShown = useRef(false);
+  useEffect(() => {
+    if (wasDrawerShown.current && !drawerShown) {
+      historyButtonRef.current?.focus();
+    }
+    wasDrawerShown.current = drawerShown;
+  }, [drawerShown]);
+
+  const pdfShown = isPdfShown(viewerState);
+
   return (
     <>
-      <header class="toolbar">
-        <ToolbarIntro />
+      <header class={compact ? "toolbar toolbar--compact" : "toolbar"}>
+        <div class="toolbar__row">
+          <ToolbarIntro compact={compact} />
+          {compact ? (
+            <CompactToolbarActions
+              showHistory={hasHistory}
+              historyOpen={drawerShown}
+              showConvert={pdfShown}
+              historyButtonRef={historyButtonRef}
+              onToggleHistory={() => {
+                setDrawerOpen(!drawerOpen);
+              }}
+              onPickFile={openFilePicker}
+            />
+          ) : null}
+        </div>
+        {compact && !pdfShown ? <p class="toolbar__description">{DESCRIPTION}</p> : null}
       </header>
       <main class="viewer">
         <input
@@ -164,12 +258,16 @@ export function App({ commitSha, app }: AppProps) {
           aria-describedby="file-limits-notice privacy-notice trust-notice"
           ref={fileInputRef}
         />
-        <HistorySidebar
-          app={app}
-          state={viewerState}
-          canConvertAnother={isPdfShown(viewerState)}
-          onPickFile={openFilePicker}
-        />
+        {compact ? (
+          <HistoryDrawer app={app} state={viewerState} open={drawerOpen} onClose={closeDrawer} />
+        ) : (
+          <HistorySidebar
+            app={app}
+            state={viewerState}
+            canConvertAnother={pdfShown}
+            onPickFile={openFilePicker}
+          />
+        )}
         <div
           class="viewer-surface"
           data-testid="viewer-surface"
