@@ -16,7 +16,17 @@ import {
 export function ToolbarIntro() {
   return (
     <div class="toolbar-intro">
-      <h1>PostScript ビューア</h1>
+      <h1>
+        <img
+          src="/favicon.svg"
+          alt=""
+          width={32}
+          height={32}
+          class="toolbar-intro__mark"
+          data-testid="app-mark"
+        />
+        PostScript ビューア
+      </h1>
       <p class="toolbar-intro__description">
         ブラウザ内で PostScript を PDF に変換して表示します。
       </p>
