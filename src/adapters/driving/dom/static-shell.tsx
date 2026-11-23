@@ -5,6 +5,7 @@ import { useRef } from "preact/hooks";
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import { FileLimitsNotice } from "./file-limits-notice";
 import { AppFooter, type AppFooterProps } from "./footer-source-link";
+import { DownloadReadyPdf } from "./download-ready-pdf";
 import { HistorySidebar } from "./history-sidebar";
 import {
   useViewerDomUi,
@@ -25,6 +26,7 @@ export function ToolbarIntro() {
         <li>PostScript ファイルを選ぶ</li>
         <li>変換が終わるまで待つ</li>
         <li>表示された PDF を確認する</li>
+        <li>必要なら PDF をダウンロードする</li>
       </ol>
     </div>
   );
@@ -94,6 +96,7 @@ export function App({ commitSha, app }: AppProps) {
                 ファイルが選択されていません
               </p>
               <ViewerFileName state={viewerState} />
+              <DownloadReadyPdf app={app} state={viewerState} />
             </div>
           </div>
           <div class="file-selection-meta">

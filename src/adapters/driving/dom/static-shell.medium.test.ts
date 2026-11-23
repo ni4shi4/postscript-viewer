@@ -70,6 +70,17 @@ describe("static shell toolbar layout", () => {
     expect(fileInput!.closest(".file-picker__button")).not.toBeNull();
     expect(placeholder!.hasAttribute("hidden")).toBe(false);
     expect(fileName!.hasAttribute("hidden")).toBe(true);
+
+    const download = document.querySelector('[data-testid="download-pdf"]');
+    expect(download).not.toBeNull();
+    expect(download!.closest(".file-picker__row")).toBe(pickerRow);
+    expect(download!.closest(".file-selection-meta")).toBeNull();
+    expect(download!.closest(".toolbar-block--limits")).toBeNull();
+    expect(download!.closest(".notice-box")).toBeNull();
+    expect(download!.hasAttribute("hidden")).toBe(true);
+    expect(nextElementSiblingSkippingText(fileName!)?.getAttribute("data-testid")).toBe(
+      "download-pdf",
+    );
   });
 
   it("groups privacy and trust notices without elements between them", () => {

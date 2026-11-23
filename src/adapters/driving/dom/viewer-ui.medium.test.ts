@@ -2,8 +2,9 @@
 
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { pdfDownloadFileName } from "../../../core/domain/pdf-download-file-name";
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import type { ViewerError, ViewerState } from "../../../core/state/viewer-state";
 import { App } from "./static-shell";
@@ -13,9 +14,13 @@ const CONVERSION_PROGRESS = { kind: "started" as const };
 
 type OpenPostScriptCall = { fileName: string; data: Uint8Array };
 
+const SAMPLE_PDF = new Uint8Array([37, 80, 68, 70, 45, 49, 46, 52]);
+
 type FakeViewerApp = ViewerApp & {
   replaceState(state: ViewerState): void;
   getOpenPostScriptCalls(): readonly OpenPostScriptCall[];
+  setReadReadyPdfResult(result: { fileName: string; pdf: Uint8Array } | undefined): void;
+  getReadReadyPdfCalls(): readonly string[];
 };
 
 function mountViewerAppUi(app: FakeViewerApp): void {
@@ -40,6 +45,8 @@ function createFakeViewerApp(
   let state = initial;
   const listeners = new Set<(next: ViewerState) => void>();
   const openCalls: OpenPostScriptCall[] = [];
+  const readReadyPdfCalls: string[] = [];
+  let readReadyPdfResult: { fileName: string; pdf: Uint8Array } | undefined = undefined;
 
   return {
     getState: () => state,
@@ -64,9 +71,14 @@ function createFakeViewerApp(
     async selectDocument() {},
     async deleteDocument() {},
     async clearHistory() {},
-    async readReadyPdf() {
-      return undefined;
+    async readReadyPdf(id) {
+      readReadyPdfCalls.push(id);
+      return readReadyPdfResult;
     },
+    setReadReadyPdfResult(result) {
+      readReadyPdfResult = result;
+    },
+    getReadReadyPdfCalls: () => readReadyPdfCalls,
     getOpenPostScriptCalls: () => openCalls,
   };
 }
@@ -103,6 +115,45 @@ function queryFileNameDisplay(): HTMLParagraphElement {
     throw new Error("viewer file name display is missing");
   }
   return display;
+}
+
+function queryDownloadPdfButton(): HTMLButtonElement {
+  const button = document.querySelector<HTMLButtonElement>('[data-testid="download-pdf"]');
+  if (button === null) {
+    throw new Error("download pdf button is missing");
+  }
+  return button;
+}
+
+type BlobUrlRegistry = {
+  getActiveCount: () => number;
+  isRevoked: (url: string) => boolean;
+  getLastCreatedUrl: () => string | undefined;
+};
+
+function installBlobUrlRegistry(): BlobUrlRegistry {
+  const active = new Set<string>();
+  let nextId = 0;
+  let lastCreatedUrl: string | undefined;
+
+  globalThis.URL.createObjectURL = (blob: Blob) => {
+    const url = `blob:fake/${String(nextId)}`;
+    nextId += 1;
+    lastCreatedUrl = url;
+    active.add(url);
+    expect(blob.type).toBe("application/pdf");
+    return url;
+  };
+
+  globalThis.URL.revokeObjectURL = (url: string) => {
+    active.delete(url);
+  };
+
+  return {
+    getActiveCount: () => active.size,
+    isRevoked: (url: string) => !active.has(url),
+    getLastCreatedUrl: () => lastCreatedUrl,
+  };
 }
 
 async function fileWithBytes(name: string, bytes: Uint8Array): Promise<File> {
@@ -388,5 +439,118 @@ describe("viewer app UI", () => {
     expect(calls[0]?.fileName).toBe("demo.ps");
     expect(calls[0]?.data).toEqual(bytes);
     expect(dom.fileInput.value).toBe("");
+  });
+
+  it("hides the download button when no document is selected", () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+
+    expect(queryDownloadPdfButton().hidden).toBe(true);
+  });
+
+  it("hides the download button while converting", () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+
+    replaceViewerState(app, documentState("d1", "sample.ps", { kind: "converting" }));
+
+    expect(queryDownloadPdfButton().hidden).toBe(true);
+  });
+
+  it("hides the download button when the document has an error", () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+
+    replaceViewerState(
+      app,
+      documentState("d1", "bad.ps", {
+        kind: "error",
+        error: { kind: "conversion-failed", detail: "failed" },
+      }),
+    );
+
+    expect(queryDownloadPdfButton().hidden).toBe(true);
+  });
+
+  it("shows the download button when the selected document is ready", () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+
+    replaceViewerState(app, documentState("d1", "ready.ps", { kind: "ready" }));
+
+    expect(queryDownloadPdfButton().hidden).toBe(false);
+  });
+
+  it("downloads the ready PDF under a derived file name and revokes the blob URL", async () => {
+    const blobUrls = installBlobUrlRegistry();
+    const app = createFakeViewerApp();
+    const postScriptName = "archive.ps.gz";
+    app.setReadReadyPdfResult({ fileName: postScriptName, pdf: SAMPLE_PDF });
+    mountViewerAppUi(app);
+
+    replaceViewerState(app, documentState("d1", postScriptName, { kind: "ready" }));
+
+    const downloadButton = queryDownloadPdfButton();
+    const anchorClicks: HTMLAnchorElement[] = [];
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi
+      .spyOn(document, "createElement")
+      .mockImplementation((tagName: string, options?: ElementCreationOptions) => {
+        const element = originalCreateElement(tagName, options);
+        if (tagName === "a") {
+          anchorClicks.push(element as HTMLAnchorElement);
+          vi.spyOn(element, "click").mockImplementation(() => {});
+        }
+        return element;
+      });
+
+    await act(async () => {
+      downloadButton.click();
+      await flushAsyncWork();
+    });
+
+    expect(app.getReadReadyPdfCalls()).toEqual(["d1"]);
+    expect(anchorClicks).toHaveLength(1);
+    const anchor = anchorClicks[0];
+    expect(anchor?.download).toBe(pdfDownloadFileName(postScriptName));
+    const objectUrl = blobUrls.getLastCreatedUrl();
+    expect(objectUrl).toBeDefined();
+    expect(anchor?.getAttribute("href")).toBe(objectUrl);
+    expect(blobUrls.getActiveCount()).toBe(0);
+    if (objectUrl !== undefined) {
+      expect(blobUrls.isRevoked(objectUrl)).toBe(true);
+    }
+
+    createElementSpy.mockRestore();
+  });
+
+  it("does not download when readReadyPdf returns undefined", async () => {
+    installBlobUrlRegistry();
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+
+    replaceViewerState(app, documentState("d1", "ready.ps", { kind: "ready" }));
+
+    const anchorClicks: HTMLAnchorElement[] = [];
+    const originalCreateElement = document.createElement.bind(document);
+    const createElementSpy = vi
+      .spyOn(document, "createElement")
+      .mockImplementation((tagName: string, options?: ElementCreationOptions) => {
+        const element = originalCreateElement(tagName, options);
+        if (tagName === "a") {
+          anchorClicks.push(element as HTMLAnchorElement);
+        }
+        return element;
+      });
+
+    await act(async () => {
+      queryDownloadPdfButton().click();
+      await flushAsyncWork();
+    });
+
+    expect(app.getReadReadyPdfCalls()).toEqual(["d1"]);
+    expect(anchorClicks).toHaveLength(0);
+
+    createElementSpy.mockRestore();
   });
 });
