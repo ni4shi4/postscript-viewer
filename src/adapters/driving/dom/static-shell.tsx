@@ -36,6 +36,9 @@ export function PrivacyNotice() {
 export function TrustNotice() {
   return (
     <p class="trust-notice" id="trust-notice" data-testid="trust-notice">
+      <span class="trust-notice__symbol" aria-hidden="true">
+        ⚠{" "}
+      </span>
       信頼できる PostScript ファイルだけを開いてください。
     </p>
   );
@@ -62,21 +65,32 @@ export function App({ commitSha, app }: AppProps) {
     <>
       <header class="toolbar">
         <ToolbarIntro />
-        <label class="file-picker">
-          <span class="file-picker__label">PostScript ファイル</span>
-          <input
-            type="file"
-            accept=".ps,.gz"
-            data-testid="file-input"
-            aria-describedby="file-limits-notice privacy-notice trust-notice"
-            ref={fileInputRef}
-          />
+        <div class="toolbar-block toolbar-block--file-selection">
+          <label class="file-picker">
+            <span class="file-picker__label">PostScript ファイル</span>
+            <input
+              type="file"
+              accept=".ps,.gz"
+              data-testid="file-input"
+              aria-describedby="file-limits-notice privacy-notice trust-notice"
+              ref={fileInputRef}
+            />
+          </label>
+          <div class="file-selection-meta">
+            <ViewerFileName state={viewerState} />
+            <ViewerStatus state={viewerState} />
+          </div>
+        </div>
+        <section class="toolbar-block toolbar-block--limits" aria-labelledby="file-limits-heading">
+          <h3 id="file-limits-heading" class="toolbar-block__heading">
+            受け付ける上限
+          </h3>
           <FileLimitsNotice />
-        </label>
-        <ViewerFileName state={viewerState} />
-        <PrivacyNotice />
-        <TrustNotice />
-        <ViewerStatus state={viewerState} />
+        </section>
+        <section class="notice-box toolbar-block toolbar-block--notices" aria-label="注意">
+          <PrivacyNotice />
+          <TrustNotice />
+        </section>
       </header>
       <main class="viewer">
         <HistorySidebar app={app} state={viewerState} />
