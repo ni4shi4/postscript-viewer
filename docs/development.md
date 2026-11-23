@@ -83,6 +83,10 @@ npm run build
     npm run build:wasm
     ```
 
-### 取得元 Release タグの変更
+### リリース成果物の作成
 
-取得元の Release タグを変えるときは、`scripts/gs-wasm-assets.mjs` の `GS_WASM_RELEASE_TAG` を更新する。
+1. `main` から Release を作成する
+    ```bash
+    gh workflow run "Release Ghostscript WASM" --ref main
+    ```
+2. 取得元タグを変えるときは `scripts/gs-wasm-assets.mjs` の `GS_WASM_RELEASE_TAG` を更新してから、上のワークフローを実行する

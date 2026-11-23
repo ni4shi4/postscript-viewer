@@ -1,0 +1,33 @@
+name: Release Ghostscript WASM
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_COMMIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: asdf-vm/actions/install@v4
+      - run: npm run build:wasm
+      - name: Resolve release tag
+        id: tag
+        run: |
+          RELEASE_TAG=$(node --input-type=module -e "import { GS_WASM_RELEASE_TAG } from './scripts/gs-wasm-assets.mjs'; console.log(GS_WASM_RELEASE_TAG)")
+          echo "release_tag=${RELEASE_TAG}" >> "${GITHUB_OUTPUT}"
+      - name: Create GitHub Release
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.release_tag }}
+        run: |
+          gh release create "${RELEASE_TAG}" \
+            public/gs.wasm \
+            src/generated/ghostscript/gs.mjs \
+            --title "Ghostscript WASM ${RELEASE_TAG}" \
+            --notes "${BUILD_COMMIT_SHA}"
