@@ -65,6 +65,40 @@ test("displays a PDF blob when a .ps file is selected", async ({ page }) => {
   await convertPostScriptViaFilePicker(page, minimalPsPath);
 });
 
+test("hides the download button until a PostScript file is converted", async ({ page }) => {
+  await expect(page.getByTestId("download-pdf")).toHaveAttribute("hidden", "");
+  await convertPostScriptViaFilePicker(page, minimalPsPath);
+  await expect(page.getByTestId("download-pdf")).not.toHaveAttribute("hidden", "");
+  await expect(page.getByTestId("download-pdf")).toBeVisible();
+});
+
+test("downloads the converted PDF without additional network requests", async ({ page }) => {
+  await convertPostScriptViaFilePicker(page, minimalPsPath);
+  const downloadButton = page.getByTestId("download-pdf");
+  await expect(downloadButton).toBeVisible();
+
+  const requestsDuringDownload: string[] = [];
+  const onRequest = (request: { url: () => string }): void => {
+    requestsDuringDownload.push(request.url());
+  };
+  page.on("request", onRequest);
+
+  try {
+    const downloadPromise = page.waitForEvent("download");
+    await downloadButton.click();
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toBe("minimal.pdf");
+    const savedPath = await download.path();
+    expect(savedPath).not.toBeNull();
+    const pdfHeader = readFileSync(savedPath!).subarray(0, 5).toString("ascii");
+    expect(pdfHeader).toBe("%PDF-");
+    expect(requestsDuringDownload).toEqual([]);
+  } finally {
+    page.off("request", onRequest);
+  }
+});
+
 const layoutHeightTolerancePx = 3;
 
 async function readViewerSurfaceLayout(page: Page) {
