@@ -33,10 +33,9 @@ export function expectedFileNameFromPickerInput(files: PostScriptFilePickerInput
   return first.name;
 }
 
-export async function expectViewerFileName(page: Page, fileName: string): Promise<void> {
-  const fileNameDisplay = page.getByTestId("viewer-file-name");
-  await expect(fileNameDisplay).toBeVisible();
-  await expect(fileNameDisplay).toHaveText(fileName);
+export async function expectSelectedFileInHistory(page: Page, fileName: string): Promise<void> {
+  const entry = page.getByTestId("history-item").filter({ hasText: fileName });
+  await expect(entry.first()).toBeVisible();
 }
 
 async function submitPostScriptFilePicker(
@@ -51,7 +50,7 @@ export async function convertPostScriptViaFilePicker(
   files: PostScriptFilePickerInput,
 ): Promise<void> {
   await submitPostScriptFilePicker(page, files);
-  await expectViewerFileName(page, expectedFileNameFromPickerInput(files));
+  await expectSelectedFileInHistory(page, expectedFileNameFromPickerInput(files));
   await expectPdfFrameShowsBlobPdf(page);
 }
 
@@ -60,7 +59,7 @@ export async function convertPostScriptViaFilePickerOnCanvas(
   files: PostScriptFilePickerInput,
 ): Promise<void> {
   await submitPostScriptFilePicker(page, files);
-  await expectViewerFileName(page, expectedFileNameFromPickerInput(files));
+  await expectSelectedFileInHistory(page, expectedFileNameFromPickerInput(files));
   await expectPdfCanvasShowsRenderedPdf(page);
 }
 
@@ -70,7 +69,7 @@ export async function activateHistoryEntryAndExpectPdfFrame(
   fileName: string,
 ): Promise<void> {
   await selectButton.click();
-  await expectViewerFileName(page, fileName);
+  await expectSelectedFileInHistory(page, fileName);
   await expectPdfFrameShowsBlobPdf(page);
 }
 
@@ -80,6 +79,6 @@ export async function activateHistoryEntryAndExpectCanvas(
   fileName: string,
 ): Promise<void> {
   await selectButton.click();
-  await expectViewerFileName(page, fileName);
+  await expectSelectedFileInHistory(page, fileName);
   await expectPdfCanvasShowsRenderedPdf(page);
 }

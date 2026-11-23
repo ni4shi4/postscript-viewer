@@ -16,17 +16,6 @@ function mountApp(): void {
   });
 }
 
-function nextElementSiblingSkippingText(element: Element): Element | null {
-  let next: ChildNode | null = element.nextSibling;
-  while (next !== null) {
-    if (next instanceof Element) {
-      return next;
-    }
-    next = next.nextSibling;
-  }
-  return null;
-}
-
 describe("static shell toolbar layout", () => {
   beforeEach(() => {
     document.body.replaceChildren();
@@ -46,51 +35,48 @@ describe("static shell toolbar layout", () => {
     }
   });
 
-  it("places the file name on the same row as the file input", () => {
+  it("shows the header on one row with the title as the only h1 and no steps list", () => {
     mountApp();
 
-    const fileInput = document.querySelector<HTMLInputElement>('[data-testid="file-input"]');
-    const fileName = document.querySelector('[data-testid="viewer-file-name"]');
-    const status = document.querySelector('[data-testid="viewer-status"]');
-    const placeholder = document.querySelector('[data-testid="file-picker-placeholder"]');
+    const header = document.querySelector("header.toolbar");
+    expect(header).not.toBeNull();
+    expect(header!.querySelector("h1")?.textContent).toBe("PostScript ビューア");
+    expect(header!.textContent).toContain(
+      "PostScript ファイルをブラウザ内で PDF に変換して表示します",
+    );
+    expect(header!.querySelector("ol")).toBeNull();
+    expect(header!.querySelector("button, input, label")).toBeNull();
+    expect(document.body.textContent).not.toContain("使い方");
+  });
+
+  it("shows the drop card with picker, limits and notices when no document is selected", () => {
+    mountApp();
+
+    const card = document.querySelector<HTMLElement>('[data-testid="drop-card"]');
+    expect(card).not.toBeNull();
+    expect(card!.hidden).toBe(false);
+    expect(card!.textContent).toContain("PostScript ファイルをここにドロップ");
+    expect(card!.textContent).toContain(".ps / .ps.gz に対応しています");
+
+    const fileInput = card!.querySelector<HTMLInputElement>('[data-testid="file-input"]');
     expect(fileInput).not.toBeNull();
-    expect(fileName).not.toBeNull();
-    expect(status).not.toBeNull();
-    expect(placeholder).not.toBeNull();
+    expect(fileInput!.accept).toBe(".ps,.gz");
+    expect(fileInput!.closest("label")?.textContent).toContain("ファイルを選択");
 
-    const pickerRow = fileInput!.closest(".file-picker__row");
-    expect(pickerRow).not.toBeNull();
-    expect(fileName!.closest(".file-picker__row")).toBe(pickerRow);
-    expect(pickerRow?.contains(fileInput!)).toBe(true);
-
-    expect(status!.closest(".file-selection-meta")).not.toBeNull();
-    expect(fileName!.closest(".file-selection-meta")).toBeNull();
-
-    expect(fileInput!.classList.contains("file-picker__input")).toBe(true);
-    expect(fileInput!.closest(".file-picker__button")).not.toBeNull();
-    expect(placeholder!.hasAttribute("hidden")).toBe(false);
-    expect(fileName!.hasAttribute("hidden")).toBe(true);
+    for (const id of ["file-limits-notice", "privacy-notice", "trust-notice"] as const) {
+      expect(card!.querySelector(`#${id}`)).not.toBeNull();
+    }
+    expect(document.querySelector('[data-testid="file-picker-placeholder"]')).toBeNull();
   });
 
-  it("groups privacy and trust notices without elements between them", () => {
+  it("keeps the PDF frame and canvas container outside the drop card", () => {
     mountApp();
 
-    const privacy = document.getElementById("privacy-notice");
-    const trust = document.getElementById("trust-notice");
-    expect(privacy).not.toBeNull();
-    expect(trust).not.toBeNull();
-    expect(privacy!.closest(".notice-box")).toBe(trust!.closest(".notice-box"));
-    expect(nextElementSiblingSkippingText(privacy!)).toBe(trust);
-  });
-
-  it("keeps file limits outside the file picker label", () => {
-    mountApp();
-
-    const limits = document.getElementById("file-limits-notice");
-    const filePicker = document.querySelector(".file-picker");
-    expect(limits).not.toBeNull();
-    expect(filePicker).not.toBeNull();
-    expect(filePicker!.contains(limits)).toBe(false);
-    expect(limits!.closest(".toolbar-block--limits")).not.toBeNull();
+    const card = document.querySelector('[data-testid="drop-card"]');
+    for (const testId of ["pdf-frame", "pdf-canvas-container"] as const) {
+      const element = document.querySelector(`[data-testid="${testId}"]`);
+      expect(element).not.toBeNull();
+      expect(card!.contains(element)).toBe(false);
+    }
   });
 });

@@ -94,6 +94,14 @@ function queryStatusPanel(): HTMLParagraphElement {
   return panel;
 }
 
+function queryDropCard(): HTMLElement {
+  const card = document.querySelector<HTMLElement>('[data-testid="drop-card"]');
+  if (card === null) {
+    throw new Error("drop card is missing");
+  }
+  return card;
+}
+
 function queryFileNameDisplay(): HTMLParagraphElement {
   const display = document.querySelector<HTMLParagraphElement>('[data-testid="viewer-file-name"]');
   if (display === null) {
@@ -283,6 +291,55 @@ describe("viewer app UI", () => {
     const status = queryStatusPanel();
     expect(status.hidden).toBe(true);
     expect(status.textContent).toBe("");
+  });
+
+  it("shows the drop card when no document is selected", () => {
+    mountViewerAppUi(createFakeViewerApp());
+
+    expect(queryDropCard().hidden).toBe(false);
+  });
+
+  it("shows the converting message and file name inside the drop card", () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+
+    replaceViewerState(app, documentState("d1", "sample.ps", { kind: "converting" }));
+
+    const card = queryDropCard();
+    expect(card.hidden).toBe(false);
+    expect(card.contains(queryStatusPanel())).toBe(true);
+    expect(card.contains(queryFileNameDisplay())).toBe(true);
+    expect(queryStatusPanel().textContent).toContain("変換しています");
+  });
+
+  it("shows the error message and file name inside the drop card", () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+
+    replaceViewerState(
+      app,
+      documentState("d1", "bad.ps", {
+        kind: "error",
+        error: { kind: "conversion-failed", detail: "failed" },
+      }),
+    );
+
+    const card = queryDropCard();
+    expect(card.hidden).toBe(false);
+    expect(card.contains(queryStatusPanel())).toBe(true);
+    expect(queryStatusPanel().textContent).toBe("failed");
+    expect(queryFileNameDisplay().textContent).toBe("bad.ps");
+  });
+
+  it("hides the drop card while the selected document is ready and shows it again after clearing", () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+
+    replaceViewerState(app, documentState("d1", "ready.ps", { kind: "ready" }));
+    expect(queryDropCard().hidden).toBe(true);
+
+    replaceViewerState(app, { documents: [], selectedDocumentId: undefined });
+    expect(queryDropCard().hidden).toBe(false);
   });
 
   it("hides the file name display when no document is selected", () => {

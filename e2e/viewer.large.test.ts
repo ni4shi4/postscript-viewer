@@ -18,7 +18,7 @@ import {
   activateHistoryEntryAndExpectPdfFrame,
   convertPostScriptViaFilePicker,
   convertPostScriptViaFilePickerOnCanvas,
-  expectViewerFileName,
+  expectSelectedFileInHistory,
 } from "./support/wait-viewer-conversion";
 
 const fixturesDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures");
@@ -46,7 +46,8 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
-test("shows a trust notice near the file picker", async ({ page }) => {
+test("shows the drop card with a trust notice before a file is selected", async ({ page }) => {
+  await expect(page.getByTestId("drop-card")).toBeVisible();
   const trustNotice = page.getByTestId("trust-notice");
   await expect(trustNotice).toBeVisible();
   await expect(trustNotice).toContainText("信頼できる PostScript");
@@ -113,18 +114,20 @@ async function readViewerSurfaceLayout(page: Page) {
   });
 }
 
-function expectViewerSurfaceHeightMatchesViewport(
+function expectViewerSurfaceFitsViewportWithToolbarAndFooter(
   layout: Awaited<ReturnType<typeof readViewerSurfaceLayout>>,
 ): void {
+  expect(layout.toolbar).not.toBeNull();
+  expect(layout.footer).not.toBeNull();
   expect(layout.viewerSurface).not.toBeNull();
   const { viewportHeightUsed } = layout;
-  const surfaceHeight = layout.viewerSurface!.height;
+  const total = layout.toolbar!.height + layout.viewerSurface!.height + layout.footer!.height;
 
-  expect(surfaceHeight).toBeGreaterThan(viewportHeightUsed - layoutHeightTolerancePx);
-  expect(surfaceHeight).toBeLessThan(viewportHeightUsed + layoutHeightTolerancePx);
+  expect(total).toBeGreaterThan(viewportHeightUsed - layoutHeightTolerancePx);
+  expect(total).toBeLessThan(viewportHeightUsed + layoutHeightTolerancePx);
 }
 
-function expectViewerSurfaceFollowsToolbarWithFooterBelowViewport(
+function expectViewerSurfaceBetweenToolbarAndFooterWithinViewport(
   layout: Awaited<ReturnType<typeof readViewerSurfaceLayout>>,
 ): void {
   expect(layout.toolbar).not.toBeNull();
@@ -137,10 +140,11 @@ function expectViewerSurfaceFollowsToolbarWithFooterBelowViewport(
 
   expect(surfaceTop).toBeGreaterThan(toolbarBottom - layoutHeightTolerancePx);
   expect(surfaceTop).toBeLessThan(toolbarBottom + layoutHeightTolerancePx);
-  expect(layout.footer!.top).toBeGreaterThan(viewportHeightUsed - layoutHeightTolerancePx);
-  expect(layout.footer!.top).toBeGreaterThanOrEqual(
+  expect(layout.footer!.bottom).toBeLessThan(viewportHeightUsed + layoutHeightTolerancePx);
+  expect(layout.footer!.top).toBeGreaterThan(
     layout.viewerSurface!.bottom - layoutHeightTolerancePx,
   );
+  expect(layout.footer!.top).toBeLessThan(layout.viewerSurface!.bottom + layoutHeightTolerancePx);
 }
 
 function expectHistorySidebarMatchesViewerSurfaceHeight(
@@ -175,23 +179,25 @@ function expectPdfFrameFillsViewerSurface(
   expect(layout.pdfFrame!.bottom).toBeLessThan(surfaceBottom + layoutHeightTolerancePx);
 }
 
-test("keeps the viewer surface at the viewport height for the PDF preview", async ({ page }) => {
+test("fits the header, viewer surface and footer into the viewport for the PDF preview", async ({
+  page,
+}) => {
   const initialLayout = await readViewerSurfaceLayout(page);
-  expectViewerSurfaceHeightMatchesViewport(initialLayout);
-  expectViewerSurfaceFollowsToolbarWithFooterBelowViewport(initialLayout);
+  expectViewerSurfaceFitsViewportWithToolbarAndFooter(initialLayout);
+  expectViewerSurfaceBetweenToolbarAndFooterWithinViewport(initialLayout);
   expectHistorySidebarMatchesViewerSurfaceHeight(initialLayout);
 
   await convertPostScriptViaFilePicker(page, minimalPsPath);
 
   const convertedLayout = await readViewerSurfaceLayout(page);
-  expectViewerSurfaceHeightMatchesViewport(convertedLayout);
-  expectViewerSurfaceFollowsToolbarWithFooterBelowViewport(convertedLayout);
+  expectViewerSurfaceFitsViewportWithToolbarAndFooter(convertedLayout);
+  expectViewerSurfaceBetweenToolbarAndFooterWithinViewport(convertedLayout);
   expectHistorySidebarMatchesViewerSurfaceHeight(convertedLayout);
   expectPdfFrameFillsViewerSurface(convertedLayout);
 
   await page.setViewportSize({ width: 400, height: 720 });
   const narrowLayout = await readViewerSurfaceLayout(page);
-  expectViewerSurfaceHeightMatchesViewport(narrowLayout);
+  expectViewerSurfaceFitsViewportWithToolbarAndFooter(narrowLayout);
 });
 
 test("displays a PDF blob when a gzip-compressed .ps.gz file is selected", async ({ page }) => {
@@ -218,10 +224,16 @@ test("shows an error for a mislabeled .ps.gz, then recovers after a valid .ps", 
   await expect(viewerStatus).toBeVisible();
   await expect(viewerStatus).not.toBeEmpty();
 
+  await expect(page.getByTestId("drop-card").getByTestId("viewer-status")).toBeVisible();
+  await expect(page.getByTestId("drop-card").getByTestId("viewer-file-name")).toHaveText(
+    "broken.ps.gz",
+  );
+
   const pdfFrame = page.getByTestId("pdf-frame");
   await expect(pdfFrame).toBeHidden();
 
   await convertPostScriptViaFilePicker(page, minimalPsPath);
+  await expect(page.getByTestId("drop-card")).toBeHidden();
 });
 
 test("redisplays the converted PDF after a full page reload", async ({ page }) => {
@@ -231,8 +243,11 @@ test("redisplays the converted PDF after a full page reload", async ({ page }) =
   await expectPdfFrameShowsBlobPdf(page);
 });
 
-test("keeps the selected file name visible after conversion completes", async ({ page }) => {
+test("hides the drop card and lists the file in the history after conversion completes", async ({
+  page,
+}) => {
   await convertPostScriptViaFilePicker(page, minimalPsPath);
+  await expect(page.getByTestId("drop-card")).toBeHidden();
 });
 
 test("redisplays the saved file name after a full page reload", async ({ page }) => {
@@ -242,7 +257,7 @@ test("redisplays the saved file name after a full page reload", async ({ page })
 
   await page.reload();
   await expectPdfFrameShowsBlobPdf(page);
-  await expectViewerFileName(page, expectedFileName);
+  await expectSelectedFileInHistory(page, expectedFileName);
 });
 
 test("replaces the displayed file name when a different PostScript file is converted", async ({
@@ -314,6 +329,7 @@ test("reflects history deletions in the sidebar and clears the preview when the 
   await withTextRow.getByTestId("history-delete").click();
   await expect(page.getByTestId("history-item")).toHaveCount(1);
   await expect(page.getByTestId("pdf-frame")).toBeHidden();
+  await expect(page.getByTestId("drop-card")).toBeVisible();
 
   await activateHistoryEntryAndExpectPdfFrame(
     page,
@@ -325,6 +341,7 @@ test("reflects history deletions in the sidebar and clears the preview when the 
   await expect(page.getByTestId("history-item")).toHaveCount(0);
   await expect(page.getByTestId("history-empty")).toBeVisible();
   await expect(page.getByTestId("pdf-frame")).toBeHidden();
+  await expect(page.getByTestId("drop-card")).toBeVisible();
 });
 
 test("restores the history list after a full page reload", async ({ page }) => {
@@ -335,7 +352,7 @@ test("restores the history list after a full page reload", async ({ page }) => {
   await page.reload();
   await expect(page.getByTestId("history-item")).toHaveCount(2);
   await expectPdfFrameShowsBlobPdf(page);
-  await expectViewerFileName(page, path.basename(withTextPsPath));
+  await expectSelectedFileInHistory(page, path.basename(withTextPsPath));
 });
 
 test("keeps only the newest history entries when more than the limit are saved", async ({

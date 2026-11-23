@@ -1,62 +1,133 @@
 import { memo } from "preact/compat";
 import { render } from "preact";
+import type { Ref } from "preact";
 import { useRef } from "preact/hooks";
 
 import type { ViewerApp } from "../../../core/ports/viewer-app";
+import { selectedViewerDocument, type ViewerState } from "../../../core/state/viewer-state";
 import { FileLimitsNotice } from "./file-limits-notice";
 import { AppFooter, type AppFooterProps } from "./footer-source-link";
 import { HistorySidebar } from "./history-sidebar";
-import {
-  useViewerDomUi,
-  viewerFileNamePresentation,
-  ViewerFileName,
-  ViewerStatus,
-} from "./viewer-ui";
+import { useViewerDomUi, ViewerFileName, ViewerStatus } from "./viewer-ui";
 
 export function ToolbarIntro() {
   return (
     <div class="toolbar-intro">
+      <span class="logo-mark" aria-hidden="true">
+        PS
+      </span>
       <h1>PostScript ビューア</h1>
+      <span class="toolbar-intro__divider" aria-hidden="true" />
       <p class="toolbar-intro__description">
-        ブラウザ内で PostScript を PDF に変換して表示します。
+        PostScript ファイルをブラウザ内で PDF に変換して表示します
       </p>
-      <h2>使い方</h2>
-      <ol class="toolbar-intro__steps">
-        <li>PostScript ファイルを選ぶ</li>
-        <li>変換が終わるまで待つ</li>
-        <li>表示された PDF を確認する</li>
-      </ol>
     </div>
   );
 }
 
 export function PrivacyNotice() {
   return (
-    <p id="privacy-notice" class="privacy-notice">
-      ファイルはサーバーへ送信されず、すべてお使いの端末上で処理されます。
+    <p id="privacy-notice" class="notice notice--ok">
+      <svg
+        class="icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        aria-hidden="true"
+      >
+        <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+      ファイルはサーバーへ送信されず、お使いの端末内で処理されます
     </p>
   );
 }
 
 export function TrustNotice() {
   return (
-    <p class="trust-notice" id="trust-notice" data-testid="trust-notice">
-      <span class="trust-notice__symbol" aria-hidden="true">
-        ⚠{" "}
-      </span>
-      信頼できる PostScript ファイルだけを開いてください。
+    <p class="notice notice--warn" id="trust-notice" data-testid="trust-notice">
+      <svg
+        class="icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        aria-hidden="true"
+      >
+        <path d="M12 3l10 18H2z" />
+        <path d="M12 10v4M12 17v.5" />
+      </svg>
+      信頼できる PostScript ファイルだけを開いてください
     </p>
   );
 }
 
 const ViewerMain = memo(function ViewerMain() {
   return (
-    <div class="viewer-surface">
+    <>
       <iframe title="変換された PDF" data-testid="pdf-frame" hidden />
       <div class="pdf-canvas-container" data-testid="pdf-canvas-container" hidden />
-    </div>
+    </>
   );
 });
+
+function isPdfShown(state: ViewerState): boolean {
+  return selectedViewerDocument(state)?.status.kind === "ready";
+}
+
+function DropCard({
+  state,
+  fileInputRef,
+}: {
+  state: ViewerState;
+  fileInputRef: Ref<HTMLInputElement>;
+}) {
+  return (
+    <div class="drop-stage" data-testid="drop-card" hidden={isPdfShown(state)}>
+      <section class="drop-card" aria-labelledby="drop-card-heading">
+        <div class="drop-card__icon" aria-hidden="true">
+          <svg
+            width="30"
+            height="30"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+          >
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+            <path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3" />
+          </svg>
+        </div>
+        <h2 id="drop-card-heading" class="drop-card__heading">
+          PostScript ファイルをここにドロップ
+        </h2>
+        <p class="drop-card__formats">.ps / .ps.gz に対応しています</p>
+        <p class="drop-card__or">または</p>
+        <label class="btn-primary">
+          ファイルを選択
+          <input
+            type="file"
+            accept=".ps,.gz"
+            class="file-picker__input"
+            data-testid="file-input"
+            aria-describedby="file-limits-notice privacy-notice trust-notice"
+            ref={fileInputRef}
+          />
+        </label>
+        <div class="drop-card__document">
+          <ViewerFileName state={state} />
+          <ViewerStatus state={state} />
+        </div>
+        <FileLimitsNotice />
+        <div class="drop-card__notices">
+          <PrivacyNotice />
+          <TrustNotice />
+        </div>
+      </section>
+    </div>
+  );
+}
 
 export type AppProps = AppFooterProps & {
   app?: ViewerApp;
@@ -65,55 +136,18 @@ export type AppProps = AppFooterProps & {
 export function App({ commitSha, app }: AppProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const viewerState = useViewerDomUi(app, fileInputRef);
-  const fileNamePresentation = viewerFileNamePresentation(viewerState);
 
   return (
     <>
       <header class="toolbar">
         <ToolbarIntro />
-        <div class="toolbar-block toolbar-block--file-selection">
-          <div class="file-picker">
-            <span class="file-picker__label">PostScript ファイル</span>
-            <div class="file-picker__row">
-              <label class="file-picker__button">
-                ファイルを選択
-                <input
-                  type="file"
-                  accept=".ps,.gz"
-                  class="file-picker__input"
-                  data-testid="file-input"
-                  aria-describedby="file-limits-notice privacy-notice trust-notice"
-                  ref={fileInputRef}
-                />
-              </label>
-              <p
-                class="file-picker__placeholder"
-                data-testid="file-picker-placeholder"
-                hidden={!fileNamePresentation.hidden}
-              >
-                ファイルが選択されていません
-              </p>
-              <ViewerFileName state={viewerState} />
-            </div>
-          </div>
-          <div class="file-selection-meta">
-            <ViewerStatus state={viewerState} />
-          </div>
-        </div>
-        <section class="toolbar-block toolbar-block--limits" aria-labelledby="file-limits-heading">
-          <h3 id="file-limits-heading" class="toolbar-block__heading">
-            受け付ける上限
-          </h3>
-          <FileLimitsNotice />
-        </section>
-        <section class="notice-box toolbar-block toolbar-block--notices" aria-label="注意">
-          <PrivacyNotice />
-          <TrustNotice />
-        </section>
       </header>
       <main class="viewer">
         <HistorySidebar app={app} state={viewerState} />
-        <ViewerMain />
+        <div class="viewer-surface">
+          <ViewerMain />
+          <DropCard state={viewerState} fileInputRef={fileInputRef} />
+        </div>
       </main>
       <footer class="app-footer">
         <AppFooter commitSha={commitSha} />

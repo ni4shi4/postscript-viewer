@@ -18,6 +18,7 @@ describe("FileLimitsNotice", () => {
     const notice = document.querySelector<HTMLElement>('[data-testid="file-limits-notice"]');
     expect(notice).not.toBeNull();
     expect(notice?.tagName).toBe("DL");
+    expect(notice?.querySelectorAll(".chip").length).toBe(3);
 
     const terms = notice?.querySelectorAll("dt");
     const definitions = notice?.querySelectorAll("dd");
