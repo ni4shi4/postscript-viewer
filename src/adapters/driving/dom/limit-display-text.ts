@@ -12,6 +12,15 @@ export function conversionTimeLimitParenthetical(): string {
   return `制限時間（${formattedConversionTimeLimit()}）`;
 }
 
-export function acceptedFileLimitsDescription(): string {
-  return `受け付ける上限: ファイルサイズ${byteLimitParenthetical("input")}、展開後のサイズ${byteLimitParenthetical("decompressed")}、変換は${conversionTimeLimitParenthetical()}まで`;
+export type AcceptedFileLimitItem = {
+  label: string;
+  value: string;
+};
+
+export function acceptedFileLimitItems(): AcceptedFileLimitItem[] {
+  return [
+    { label: "ファイルサイズ", value: formattedByteLimit("input") },
+    { label: "展開後のサイズ", value: formattedByteLimit("decompressed") },
+    { label: "変換の制限時間", value: formattedConversionTimeLimit() },
+  ];
 }
