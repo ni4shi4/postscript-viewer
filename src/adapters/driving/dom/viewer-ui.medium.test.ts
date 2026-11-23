@@ -64,6 +64,9 @@ function createFakeViewerApp(
     async selectDocument() {},
     async deleteDocument() {},
     async clearHistory() {},
+    async readReadyPdf() {
+      return undefined;
+    },
     getOpenPostScriptCalls: () => openCalls,
   };
 }

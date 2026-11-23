@@ -651,4 +651,135 @@ describe("createViewerApp", () => {
     expect(app.getState().selectedDocumentId).toBeUndefined();
     expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
   });
+
+  it("returns displayed PDF from readReadyPdf while save is still pending", async () => {
+    const { app, postScriptConverter, pdfStore } = createTestViewerApp();
+
+    let releaseSave: (() => void) | undefined;
+    const saveBlocked = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    pdfStore.setSaveDelay(() => saveBlocked);
+
+    const openPromise = app.openPostScript({
+      fileName: "sample.ps",
+      data: POSTSCRIPT_BYTES,
+    });
+    await waitForConversions(postScriptConverter, 1);
+    postScriptConverter.completeAt(0, SAMPLE_PDF);
+    await openPromise;
+
+    const documentId = app.getState().selectedDocumentId!;
+    const result = await app.readReadyPdf(documentId);
+    expect(result).toEqual({ fileName: "sample.ps", pdf: SAMPLE_PDF });
+    expect(await pdfStore.list()).toHaveLength(0);
+
+    releaseSave!();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  it("returns displayed PDF from readReadyPdf in a ready subscription callback", async () => {
+    const { app, postScriptConverter } = createTestViewerApp();
+    let readyRead: { fileName: string; pdf: Uint8Array } | undefined;
+
+    const unsubscribe = app.subscribe(async (state) => {
+      const doc = selectedViewerDocument(state);
+      if (doc?.status.kind === "ready") {
+        readyRead = await app.readReadyPdf(doc.id);
+      }
+    });
+
+    const openPromise = app.openPostScript({
+      fileName: "sample.ps",
+      data: POSTSCRIPT_BYTES,
+    });
+    await waitForConversions(postScriptConverter, 1);
+    postScriptConverter.completeAt(0, SAMPLE_PDF);
+    await openPromise;
+
+    expect(readyRead).toEqual({ fileName: "sample.ps", pdf: SAMPLE_PDF });
+    unsubscribe();
+  });
+
+  it("returns displayed PDF from readReadyPdf after restore and selectDocument", async () => {
+    const { app, pdfStore } = createTestViewerApp();
+    await pdfStore.put({ id: "doc-a", fileName: "a.ps", savedAt: 1, pdf: SAMPLE_PDF });
+    await pdfStore.put({ id: "doc-b", fileName: "b.ps", savedAt: 2, pdf: OTHER_PDF });
+
+    await app.restore();
+    expect(await app.readReadyPdf("doc-b")).toEqual({ fileName: "b.ps", pdf: OTHER_PDF });
+
+    await app.selectDocument("doc-a");
+    expect(await app.readReadyPdf("doc-a")).toEqual({ fileName: "a.ps", pdf: SAMPLE_PDF });
+  });
+
+  it("returns undefined from readReadyPdf when document is not ready", async () => {
+    const { app, postScriptConverter } = createTestViewerApp();
+
+    void app.openPostScript({
+      fileName: "sample.ps",
+      data: POSTSCRIPT_BYTES,
+    });
+    await waitForConversions(postScriptConverter, 1);
+    const documentId = app.getState().selectedDocumentId!;
+    expect(await app.readReadyPdf(documentId)).toBeUndefined();
+  });
+
+  it("returns undefined from readReadyPdf for wrong id, after cancel, and after deleting selection", async () => {
+    const { app, postScriptConverter, pdfStore } = createTestViewerApp();
+
+    const openPromise = app.openPostScript({
+      fileName: "sample.ps",
+      data: POSTSCRIPT_BYTES,
+    });
+    await waitForConversions(postScriptConverter, 1);
+    postScriptConverter.completeAt(0, SAMPLE_PDF);
+    await openPromise;
+    const documentId = app.getState().selectedDocumentId!;
+
+    expect(await app.readReadyPdf("other-id")).toBeUndefined();
+
+    app.cancel();
+    expect(await app.readReadyPdf(documentId)).toBeUndefined();
+
+    await pdfStore.put({ id: "doc-a", fileName: "a.ps", savedAt: 1, pdf: SAMPLE_PDF });
+    await app.selectDocument("doc-a");
+    await app.deleteDocument("doc-a");
+    expect(await app.readReadyPdf("doc-a")).toBeUndefined();
+  });
+
+  it("keeps readReadyPdf available when deleting a non-selected history entry", async () => {
+    const { app, pdfStore } = createTestViewerApp();
+    await pdfStore.put({ id: "doc-a", fileName: "a.ps", savedAt: 1, pdf: SAMPLE_PDF });
+    await pdfStore.put({ id: "doc-b", fileName: "b.ps", savedAt: 2, pdf: OTHER_PDF });
+
+    await app.selectDocument("doc-a");
+    await app.deleteDocument("doc-b");
+
+    expect(await app.readReadyPdf("doc-a")).toEqual({ fileName: "a.ps", pdf: SAMPLE_PDF });
+  });
+
+  it("does not change state or viewer when readReadyPdf is called", async () => {
+    const { app, postScriptConverter, pdfViewer, pdfStore } = createTestViewerApp();
+
+    const openPromise = app.openPostScript({
+      fileName: "sample.ps",
+      data: POSTSCRIPT_BYTES,
+    });
+    await waitForConversions(postScriptConverter, 1);
+    postScriptConverter.completeAt(0, SAMPLE_PDF);
+    await openPromise;
+    while ((await pdfStore.list()).length < 1) {
+      await Promise.resolve();
+    }
+
+    const stateBefore = app.getState();
+    const displayedBefore = pdfViewer.getDisplayedPdf();
+    const documentId = stateBefore.selectedDocumentId!;
+    await app.readReadyPdf(documentId);
+
+    expect(app.getState()).toBe(stateBefore);
+    expect(pdfViewer.getDisplayedPdf()).toBe(displayedBefore);
+  });
 });

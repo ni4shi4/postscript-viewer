@@ -7,6 +7,7 @@ export type ViewerApp = {
   selectDocument(id: string): Promise<void>;
   deleteDocument(id: string): Promise<void>;
   clearHistory(): Promise<void>;
+  readReadyPdf(id: string): Promise<{ fileName: string; pdf: Uint8Array } | undefined>;
   getState(): ViewerState;
   subscribe(listener: (state: ViewerState) => void): () => void;
 };
