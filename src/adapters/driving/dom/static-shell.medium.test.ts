@@ -46,26 +46,30 @@ describe("static shell toolbar layout", () => {
     }
   });
 
-  it("places the file name and status together under the file input", () => {
+  it("places the file name on the same row as the file input", () => {
     mountApp();
 
     const fileInput = document.querySelector<HTMLInputElement>('[data-testid="file-input"]');
     const fileName = document.querySelector('[data-testid="viewer-file-name"]');
     const status = document.querySelector('[data-testid="viewer-status"]');
+    const placeholder = document.querySelector('[data-testid="file-picker-placeholder"]');
     expect(fileInput).not.toBeNull();
     expect(fileName).not.toBeNull();
     expect(status).not.toBeNull();
+    expect(placeholder).not.toBeNull();
 
-    const selectionBlock = fileInput!.closest(".toolbar-block--file-selection");
-    expect(selectionBlock).not.toBeNull();
-    expect(fileName!.closest(".file-selection-meta")).not.toBeNull();
+    const pickerRow = fileInput!.closest(".file-picker__row");
+    expect(pickerRow).not.toBeNull();
+    expect(fileName!.closest(".file-picker__row")).toBe(pickerRow);
+    expect(pickerRow?.contains(fileInput!)).toBe(true);
+
     expect(status!.closest(".file-selection-meta")).not.toBeNull();
-    expect(fileName!.parentElement).toBe(status!.parentElement);
+    expect(fileName!.closest(".file-selection-meta")).toBeNull();
 
-    const meta = fileName!.parentElement;
-    expect(meta?.querySelector('[data-testid="viewer-file-name"]')).toBe(fileName);
-    expect(meta?.querySelector('[data-testid="viewer-status"]')).toBe(status);
-    expect(nextElementSiblingSkippingText(fileName!)).toBe(status);
+    expect(fileInput!.classList.contains("file-picker__input")).toBe(true);
+    expect(fileInput!.closest(".file-picker__button")).not.toBeNull();
+    expect(placeholder!.hasAttribute("hidden")).toBe(false);
+    expect(fileName!.hasAttribute("hidden")).toBe(true);
   });
 
   it("groups privacy and trust notices without elements between them", () => {

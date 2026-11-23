@@ -6,7 +6,12 @@ import type { ViewerApp } from "../../../core/ports/viewer-app";
 import { FileLimitsNotice } from "./file-limits-notice";
 import { AppFooter, type AppFooterProps } from "./footer-source-link";
 import { HistorySidebar } from "./history-sidebar";
-import { useViewerDomUi, ViewerFileName, ViewerStatus } from "./viewer-ui";
+import {
+  useViewerDomUi,
+  viewerFileNamePresentation,
+  ViewerFileName,
+  ViewerStatus,
+} from "./viewer-ui";
 
 export function ToolbarIntro() {
   return (
@@ -60,24 +65,38 @@ export type AppProps = AppFooterProps & {
 export function App({ commitSha, app }: AppProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const viewerState = useViewerDomUi(app, fileInputRef);
+  const fileNamePresentation = viewerFileNamePresentation(viewerState);
 
   return (
     <>
       <header class="toolbar">
         <ToolbarIntro />
         <div class="toolbar-block toolbar-block--file-selection">
-          <label class="file-picker">
+          <div class="file-picker">
             <span class="file-picker__label">PostScript ファイル</span>
-            <input
-              type="file"
-              accept=".ps,.gz"
-              data-testid="file-input"
-              aria-describedby="file-limits-notice privacy-notice trust-notice"
-              ref={fileInputRef}
-            />
-          </label>
+            <div class="file-picker__row">
+              <label class="file-picker__button">
+                ファイルを選択
+                <input
+                  type="file"
+                  accept=".ps,.gz"
+                  class="file-picker__input"
+                  data-testid="file-input"
+                  aria-describedby="file-limits-notice privacy-notice trust-notice"
+                  ref={fileInputRef}
+                />
+              </label>
+              <p
+                class="file-picker__placeholder"
+                data-testid="file-picker-placeholder"
+                hidden={!fileNamePresentation.hidden}
+              >
+                ファイルが選択されていません
+              </p>
+              <ViewerFileName state={viewerState} />
+            </div>
+          </div>
           <div class="file-selection-meta">
-            <ViewerFileName state={viewerState} />
             <ViewerStatus state={viewerState} />
           </div>
         </div>
