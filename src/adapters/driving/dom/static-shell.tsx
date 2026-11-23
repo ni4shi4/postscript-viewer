@@ -8,7 +8,7 @@ import { selectedViewerDocument, type ViewerState } from "../../../core/state/vi
 import { FileLimitsNotice } from "./file-limits-notice";
 import { AppFooter, type AppFooterProps } from "./footer-source-link";
 import { HistorySidebar } from "./history-sidebar";
-import { useViewerDomUi, ViewerFileName, ViewerStatus } from "./viewer-ui";
+import { useFileDropTarget, useViewerDomUi, ViewerFileName, ViewerStatus } from "./viewer-ui";
 
 export function ToolbarIntro() {
   return (
@@ -76,6 +76,18 @@ function isPdfShown(state: ViewerState): boolean {
   return selectedViewerDocument(state)?.status.kind === "ready";
 }
 
+function isDocumentActive(state: ViewerState): boolean {
+  return selectedViewerDocument(state) !== undefined;
+}
+
+function DropOverlay({ state }: { state: ViewerState }) {
+  return (
+    <div class="drop-overlay" data-testid="drop-overlay" hidden={!isPdfShown(state)}>
+      <p class="drop-overlay__label">ここにドロップして変換</p>
+    </div>
+  );
+}
+
 function DropCard({
   state,
   fileInputRef,
@@ -99,11 +111,15 @@ function DropCard({
             <path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3" />
           </svg>
         </div>
-        <h2 id="drop-card-heading" class="drop-card__heading">
+        <h2
+          id="drop-card-heading"
+          class="drop-card__heading drop-card__pointer-only"
+          hidden={isDocumentActive(state)}
+        >
           PostScript ファイルをここにドロップ
         </h2>
         <p class="drop-card__formats">.ps / .ps.gz に対応しています</p>
-        <p class="drop-card__or">または</p>
+        <p class="drop-card__or drop-card__pointer-only">または</p>
         <label class="btn-primary">
           ファイルを選択
           <input
@@ -136,6 +152,7 @@ export type AppProps = AppFooterProps & {
 export function App({ commitSha, app }: AppProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const viewerState = useViewerDomUi(app, fileInputRef);
+  const dropTarget = useFileDropTarget(app);
 
   return (
     <>
@@ -144,9 +161,15 @@ export function App({ commitSha, app }: AppProps) {
       </header>
       <main class="viewer">
         <HistorySidebar app={app} state={viewerState} />
-        <div class="viewer-surface">
+        <div
+          class="viewer-surface"
+          data-testid="viewer-surface"
+          data-dragging={dropTarget.dragging ? "true" : undefined}
+          {...dropTarget.handlers}
+        >
           <ViewerMain />
           <DropCard state={viewerState} fileInputRef={fileInputRef} />
+          {dropTarget.dragging ? <DropOverlay state={viewerState} /> : null}
         </div>
       </main>
       <footer class="app-footer">

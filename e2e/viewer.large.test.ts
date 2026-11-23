@@ -236,6 +236,40 @@ test("shows an error for a mislabeled .ps.gz, then recovers after a valid .ps", 
   await expect(page.getByTestId("drop-card")).toBeHidden();
 });
 
+async function dropPostScriptOnViewerSurface(page: Page, filePath: string): Promise<void> {
+  const base64 = readFileSync(filePath).toString("base64");
+  const fileName = path.basename(filePath);
+  const dataTransfer = await page.evaluateHandle(
+    ({ base64Body, name }) => {
+      const bytes = Uint8Array.from(atob(base64Body), (char) => char.charCodeAt(0));
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([bytes], name));
+      return transfer;
+    },
+    { base64Body: base64, name: fileName },
+  );
+  await page.getByTestId("viewer-surface").dispatchEvent("dragenter", { dataTransfer });
+  await expect(page.getByTestId("viewer-surface")).toHaveAttribute("data-dragging", "true");
+  await page.getByTestId("viewer-surface").dispatchEvent("drop", { dataTransfer });
+}
+
+test("converts a .ps file dropped onto the drop card", async ({ page }) => {
+  await dropPostScriptOnViewerSurface(page, minimalPsPath);
+
+  await expectSelectedFileInHistory(page, "minimal.ps");
+  await expectPdfFrameShowsBlobPdf(page);
+  await expect(page.getByTestId("viewer-surface")).not.toHaveAttribute("data-dragging", "true");
+});
+
+test("converts a .ps file dropped while another PDF is displayed", async ({ page }) => {
+  await convertPostScriptViaFilePicker(page, minimalPsPath);
+
+  await dropPostScriptOnViewerSurface(page, withTextPsPath);
+
+  await expectSelectedFileInHistory(page, "with-text.ps");
+  await expectPdfFrameShowsBlobPdf(page);
+});
+
 test("redisplays the converted PDF after a full page reload", async ({ page }) => {
   await convertPostScriptViaFilePicker(page, minimalPsPath);
 

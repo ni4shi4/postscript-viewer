@@ -154,6 +154,29 @@ async function flushAsyncWork(): Promise<void> {
   });
 }
 
+function querySurface(): HTMLElement {
+  const surface = document.querySelector<HTMLElement>('[data-testid="viewer-surface"]');
+  if (surface === null) {
+    throw new Error("viewer surface is missing");
+  }
+  return surface;
+}
+
+function dispatchDrag(
+  target: Element,
+  type: "dragenter" | "dragover" | "dragleave" | "drop",
+  files: readonly File[] = [],
+): Event {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "dataTransfer", {
+    value: { types: ["Files"], files },
+  });
+  act(() => {
+    target.dispatchEvent(event);
+  });
+  return event;
+}
+
 describe("viewer app UI", () => {
   beforeEach(() => {
     document.body.replaceChildren();
@@ -442,5 +465,108 @@ describe("viewer app UI", () => {
     expect(calls[0]?.fileName).toBe("demo.ps");
     expect(calls[0]?.data).toEqual(bytes);
     expect(dom.fileInput.value).toBe("");
+  });
+
+  describe("file drop", () => {
+    it("highlights the surface while files are dragged over it and clears it on leave", () => {
+      mountViewerAppUi(createFakeViewerApp());
+      const surface = querySurface();
+      expect(surface.hasAttribute("data-dragging")).toBe(false);
+
+      dispatchDrag(surface, "dragenter");
+      expect(surface.hasAttribute("data-dragging")).toBe(true);
+
+      dispatchDrag(surface, "dragleave");
+      expect(surface.hasAttribute("data-dragging")).toBe(false);
+    });
+
+    it("keeps the highlight when the pointer moves between child elements", () => {
+      mountViewerAppUi(createFakeViewerApp());
+      const surface = querySurface();
+      const card = queryDropCard();
+
+      dispatchDrag(surface, "dragenter");
+      dispatchDrag(card, "dragenter");
+      dispatchDrag(surface, "dragleave");
+
+      expect(surface.hasAttribute("data-dragging")).toBe(true);
+
+      dispatchDrag(card, "dragleave");
+      expect(surface.hasAttribute("data-dragging")).toBe(false);
+    });
+
+    it("shows the drop overlay only while a PDF is displayed", () => {
+      const app = createFakeViewerApp();
+      mountViewerAppUi(app);
+      const surface = querySurface();
+
+      dispatchDrag(surface, "dragenter");
+      expect(document.querySelector<HTMLElement>('[data-testid="drop-overlay"]')?.hidden).toBe(
+        true,
+      );
+      dispatchDrag(surface, "dragleave");
+
+      replaceViewerState(app, documentState("d1", "ready.ps", { kind: "ready" }));
+      dispatchDrag(surface, "dragenter");
+      const overlay = document.querySelector<HTMLElement>('[data-testid="drop-overlay"]');
+      expect(overlay?.hidden).toBe(false);
+      expect(overlay?.textContent).toContain("ここにドロップして変換");
+    });
+
+    it("starts a conversion with the first dropped file and clears the highlight", async () => {
+      const app = createFakeViewerApp();
+      const originalOpenPostScript = app.openPostScript.bind(app);
+      app.openPostScript = async (input) => {
+        await originalOpenPostScript(input);
+        replaceViewerState(app, documentState("d1", input.fileName, { kind: "converting" }));
+      };
+      mountViewerAppUi(app);
+      const surface = querySurface();
+      const bytes = new Uint8Array([37, 33, 80, 83]);
+      const first = await fileWithBytes("dropped.ps", bytes);
+      const second = await fileWithBytes("other.ps", bytes);
+
+      dispatchDrag(surface, "dragenter");
+      let dropEvent: Event | undefined;
+      await act(async () => {
+        dropEvent = dispatchDrag(surface, "drop", [first, second]);
+        await flushAsyncWork();
+      });
+
+      expect(dropEvent?.defaultPrevented).toBe(true);
+      expect(surface.hasAttribute("data-dragging")).toBe(false);
+      expect(queryFileNameDisplay().textContent).toBe("dropped.ps");
+      expect(queryStatusPanel().textContent).toContain("変換しています");
+      expect(app.getOpenPostScriptCalls()).toHaveLength(1);
+    });
+
+    it("also accepts drops while a PDF is displayed", async () => {
+      const app = createFakeViewerApp();
+      const originalOpenPostScript = app.openPostScript.bind(app);
+      app.openPostScript = async (input) => {
+        await originalOpenPostScript(input);
+        replaceViewerState(app, documentState("d2", input.fileName, { kind: "converting" }));
+      };
+      mountViewerAppUi(app);
+      replaceViewerState(app, documentState("d1", "ready.ps", { kind: "ready" }));
+      const file = await fileWithBytes("next.ps", new Uint8Array([37, 33]));
+
+      await act(async () => {
+        dispatchDrag(querySurface(), "drop", [file]);
+        await flushAsyncWork();
+      });
+
+      expect(queryFileNameDisplay().textContent).toBe("next.ps");
+    });
+
+    it("hides the drop heading while converting", () => {
+      const app = createFakeViewerApp();
+      mountViewerAppUi(app);
+      const heading = queryDropCard().querySelector<HTMLElement>("h2");
+      expect(heading?.hidden).toBe(false);
+
+      replaceViewerState(app, documentState("d1", "sample.ps", { kind: "converting" }));
+      expect(heading?.hidden).toBe(true);
+    });
   });
 });
