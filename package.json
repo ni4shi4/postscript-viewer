@@ -30,16 +30,18 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,mjs}": "oxlint",
-    "*.{ts,mjs,html,css}": "oxfmt --check",
+    "*.{ts,tsx,mjs}": "oxlint",
+    "*.{ts,tsx,mjs,html,css}": "oxfmt --check",
     "!(package-lock).json": "oxfmt --check",
     "*": "editorconfig-checker"
   },
   "dependencies": {
     "pako": "3.0.3",
-    "pdfjs-dist": "6.5.438"
+    "pdfjs-dist": "6.5.438",
+    "preact": "11.2.0"
   },
   "devDependencies": {
+    "@preact/preset-vite": "2.10.6",
     "@playwright/test": "1.65.1",
     "@types/node": "26.6.6",
     "@types/pako": "2.0.4",

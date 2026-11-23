@@ -1,5 +1,6 @@
 import { execSync } from "node:child_process";
 
+import preact from "@preact/preset-vite";
 import { defineConfig } from "vite";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 
@@ -23,6 +24,7 @@ export default defineConfig({
     BUILD_COMMIT_SHA: buildCommitSha !== undefined ? JSON.stringify(buildCommitSha) : "undefined",
   },
   plugins: [
+    preact(),
     viteStaticCopy({
       targets: [
         {

@@ -1,16 +1,13 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
+import { h, render } from "preact";
+import { act } from "preact/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import type { ViewerError, ViewerState } from "../../../core/state/viewer-state";
-import { queryViewerDom, startViewerDomUi } from "./viewer-ui";
-
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+import { App } from "./static-shell";
+import { queryViewerDom } from "./viewer-ui";
 
 const CONVERSION_PROGRESS = { kind: "started" as const };
 
@@ -21,13 +18,20 @@ type FakeViewerApp = ViewerApp & {
   getOpenPostScriptCalls(): readonly OpenPostScriptCall[];
 };
 
-function loadIndexBody(): void {
-  const indexHtml = readFileSync(path.join(REPO_ROOT, "index.html"), "utf8");
-  const bodyMatch = /<body[^>]*>([\s\S]*?)<\/body>/i.exec(indexHtml);
-  if (bodyMatch === null) {
-    throw new Error("index.html body not found");
-  }
-  document.body.innerHTML = bodyMatch[1];
+function mountViewerAppUi(app: FakeViewerApp): void {
+  document.body.replaceChildren();
+  const mount = document.createElement("div");
+  mount.id = "mount-app";
+  document.body.append(mount);
+  act(() => {
+    render(h(App, { app }), mount);
+  });
+}
+
+function replaceViewerState(app: FakeViewerApp, state: ViewerState): void {
+  act(() => {
+    app.replaceState(state);
+  });
 }
 
 function createFakeViewerApp(
@@ -57,6 +61,9 @@ function createFakeViewerApp(
     },
     async restore() {},
     cancel() {},
+    async selectDocument() {},
+    async deleteDocument() {},
+    async clearHistory() {},
     getOpenPostScriptCalls: () => openCalls,
   };
 }
@@ -139,15 +146,14 @@ async function flushAsyncWork(): Promise<void> {
   });
 }
 
-describe("startViewerDomUi", () => {
+describe("viewer app UI", () => {
   beforeEach(() => {
-    loadIndexBody();
+    document.body.replaceChildren();
   });
 
   it("hides the status panel when no document is selected", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
     const status = queryStatusPanel();
     expect(status.hidden).toBe(true);
@@ -156,10 +162,9 @@ describe("startViewerDomUi", () => {
 
   it("shows a non-empty status while converting", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
-    app.replaceState(documentState("d1", "sample.ps", { kind: "converting" }));
+    replaceViewerState(app, documentState("d1", "sample.ps", { kind: "converting" }));
 
     const status = queryStatusPanel();
     expect(status.hidden).toBe(false);
@@ -168,10 +173,9 @@ describe("startViewerDomUi", () => {
 
   it("hides the status panel when the document is ready", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
-    app.replaceState(documentState("d1", "sample.ps", { kind: "ready" }));
+    replaceViewerState(app, documentState("d1", "sample.ps", { kind: "ready" }));
 
     const status = queryStatusPanel();
     expect(status.hidden).toBe(true);
@@ -179,10 +183,10 @@ describe("startViewerDomUi", () => {
 
   it("shows the configured limit for input too-large errors", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
-    app.replaceState(
+    replaceViewerState(
+      app,
       documentState("d1", "huge.ps", {
         kind: "error",
         error: { kind: "too-large", limit: "input" },
@@ -197,10 +201,10 @@ describe("startViewerDomUi", () => {
 
   it("shows the configured limit for decompressed too-large errors", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
-    app.replaceState(
+    replaceViewerState(
+      app,
       documentState("d1", "bomb.ps.gz", {
         kind: "error",
         error: { kind: "too-large", limit: "decompressed" },
@@ -215,10 +219,10 @@ describe("startViewerDomUi", () => {
 
   it("shows the configured limit for timeout errors", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
-    app.replaceState(
+    replaceViewerState(
+      app,
       documentState("d1", "sample.ps", {
         kind: "error",
         error: { kind: "timeout" },
@@ -233,10 +237,10 @@ describe("startViewerDomUi", () => {
 
   it("shows a gzip-related message for not-gzip errors", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
-    app.replaceState(
+    replaceViewerState(
+      app,
       documentState("d1", "bad.ps.gz", { kind: "error", error: { kind: "not-gzip" } }),
     );
 
@@ -247,11 +251,11 @@ describe("startViewerDomUi", () => {
 
   it("shows conversion error detail in the status panel", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
     const detail = "Ghostscript exited with status 1";
 
-    app.replaceState(
+    replaceViewerState(
+      app,
       documentState("d1", "sample.ps", {
         kind: "error",
         error: { kind: "conversion-failed", detail },
@@ -265,16 +269,16 @@ describe("startViewerDomUi", () => {
 
   it("clears an error status when the document becomes ready", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
-    app.replaceState(
+    replaceViewerState(
+      app,
       documentState("d1", "sample.ps", {
         kind: "error",
         error: { kind: "conversion-failed", detail: "failed" },
       }),
     );
-    app.replaceState(documentState("d1", "sample.ps", { kind: "ready" }));
+    replaceViewerState(app, documentState("d1", "sample.ps", { kind: "ready" }));
 
     const status = queryStatusPanel();
     expect(status.hidden).toBe(true);
@@ -283,8 +287,7 @@ describe("startViewerDomUi", () => {
 
   it("hides the file name display when no document is selected", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
     const fileNameDisplay = queryFileNameDisplay();
     expect(fileNameDisplay.hidden).toBe(true);
@@ -293,10 +296,9 @@ describe("startViewerDomUi", () => {
 
   it("shows the selected file name while converting", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
-    app.replaceState(documentState("d1", "sample.ps", { kind: "converting" }));
+    replaceViewerState(app, documentState("d1", "sample.ps", { kind: "converting" }));
 
     const fileNameDisplay = queryFileNameDisplay();
     expect(fileNameDisplay.hidden).toBe(false);
@@ -305,10 +307,9 @@ describe("startViewerDomUi", () => {
 
   it("shows the selected file name when the document is ready", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
-    app.replaceState(documentState("d1", "ready.ps", { kind: "ready" }));
+    replaceViewerState(app, documentState("d1", "ready.ps", { kind: "ready" }));
 
     const fileNameDisplay = queryFileNameDisplay();
     expect(fileNameDisplay.hidden).toBe(false);
@@ -317,10 +318,10 @@ describe("startViewerDomUi", () => {
 
   it("shows the selected file name when the document has an error", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
-    app.replaceState(
+    replaceViewerState(
+      app,
       documentState("d1", "bad.ps", {
         kind: "error",
         error: { kind: "conversion-failed", detail: "failed" },
@@ -334,11 +335,10 @@ describe("startViewerDomUi", () => {
 
   it("clears the file name display when the document is cleared", () => {
     const app = createFakeViewerApp();
-    const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
+    mountViewerAppUi(app);
 
-    app.replaceState(documentState("d1", "sample.ps", { kind: "ready" }));
-    app.replaceState({ documents: [], selectedDocumentId: undefined });
+    replaceViewerState(app, documentState("d1", "sample.ps", { kind: "ready" }));
+    replaceViewerState(app, { documents: [], selectedDocumentId: undefined });
 
     const fileNameDisplay = queryFileNameDisplay();
     expect(fileNameDisplay.hidden).toBe(true);
@@ -351,14 +351,16 @@ describe("startViewerDomUi", () => {
     const originalOpenPostScript = app.openPostScript.bind(app);
     app.openPostScript = async (input) => {
       await originalOpenPostScript(input);
-      app.replaceState(documentState("d1", input.fileName, { kind: "converting" }));
+      replaceViewerState(app, documentState("d1", input.fileName, { kind: "converting" }));
     };
+    mountViewerAppUi(app);
     const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
     const file = await fileWithBytes("demo.ps", bytes);
 
-    dispatchFileSelection(dom.fileInput, file);
-    await flushAsyncWork();
+    await act(async () => {
+      dispatchFileSelection(dom.fileInput, file);
+      await flushAsyncWork();
+    });
 
     expect(dom.fileInput.value).toBe("");
     const fileNameDisplay = queryFileNameDisplay();
@@ -368,13 +370,15 @@ describe("startViewerDomUi", () => {
 
   it("forwards selected files to the viewer app and resets the input", async () => {
     const app = createFakeViewerApp();
+    mountViewerAppUi(app);
     const dom = queryViewerDom();
-    startViewerDomUi(dom, app);
     const bytes = new Uint8Array([37, 33, 80, 83]);
     const file = await fileWithBytes("demo.ps", bytes);
 
-    dispatchFileSelection(dom.fileInput, file);
-    await flushAsyncWork();
+    await act(async () => {
+      dispatchFileSelection(dom.fileInput, file);
+      await flushAsyncWork();
+    });
 
     const calls = app.getOpenPostScriptCalls();
     expect(calls).toHaveLength(1);

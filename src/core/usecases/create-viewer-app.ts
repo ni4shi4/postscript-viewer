@@ -14,6 +14,7 @@ export type CreateViewerAppDeps = {
   pdfViewer: PdfViewer;
   createDocumentId: () => string;
   pdfStore: PdfStore;
+  now: () => number;
 };
 
 function viewerErrorFromUnknown(err: unknown): ViewerError {
@@ -46,32 +47,53 @@ function readPostScriptBytes(fileName: string, data: Uint8Array): Uint8Array {
   return isGzipFileName(fileName) ? readGzipPostScriptBytes(data) : readRawPostScriptBytes(data);
 }
 
-function clearPdfStore(pdfStore: PdfStore): void {
-  void pdfStore.clear().catch((err: unknown) => {
-    console.error(err);
-  });
+async function syncHistoryState(
+  pdfStore: PdfStore,
+  store: ReturnType<typeof createViewerStore>,
+): Promise<void> {
+  const metas = await pdfStore.list();
+  store.setHistoryFromMetas(metas);
 }
 
-async function saveReadyPdf(
-  pdfStore: PdfStore,
+async function putReadyPdf(
+  deps: CreateViewerAppDeps,
+  store: ReturnType<typeof createViewerStore>,
   isStillActive: () => boolean,
-  entry: { fileName: string; pdf: Uint8Array },
+  entry: { id: string; fileName: string; pdf: Uint8Array },
 ): Promise<void> {
   if (!isStillActive()) {
     return;
   }
   try {
-    await pdfStore.save(entry);
+    await deps.pdfStore.put({
+      id: entry.id,
+      fileName: entry.fileName,
+      savedAt: deps.now(),
+      pdf: entry.pdf,
+    });
     if (!isStillActive()) {
       try {
-        await pdfStore.clear();
-      } catch (clearErr: unknown) {
-        console.error(clearErr);
+        await deps.pdfStore.remove(entry.id);
+      } catch (removeErr: unknown) {
+        console.error(removeErr);
       }
+      return;
     }
+    await syncHistoryState(deps.pdfStore, store);
   } catch (err: unknown) {
     console.error(err);
   }
+}
+
+function isHistoryDocumentId(
+  state: ReturnType<ReturnType<typeof createViewerStore>["getState"]>,
+  id: string,
+): boolean {
+  const viewerDocument = state.documents.find((entry) => entry.id === id);
+  if (viewerDocument === undefined) {
+    return false;
+  }
+  return viewerDocument.savedAt !== undefined && viewerDocument.status.kind === "ready";
 }
 
 export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
@@ -79,6 +101,7 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
   const { pdfStore } = deps;
   let activeDocumentId: string | undefined;
   let activeRestoreId: string | undefined;
+  let activeSelectId: string | undefined;
   let abortController: AbortController | undefined;
 
   const abortActiveConversion = (): void => {
@@ -94,13 +117,13 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
     async openPostScript(input) {
       abortActiveConversion();
       activeRestoreId = undefined;
+      activeSelectId = undefined;
 
       const documentId = deps.createDocumentId();
       activeDocumentId = documentId;
       abortController = new AbortController();
       const { signal } = abortController;
 
-      clearPdfStore(pdfStore);
       store.beginConverting(documentId, input.fileName, { kind: "started" });
       deps.pdfViewer.clear();
 
@@ -123,7 +146,8 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
 
         store.setReady(documentId);
         deps.pdfViewer.show(pdf);
-        void saveReadyPdf(pdfStore, () => isDocumentActive(documentId), {
+        void putReadyPdf(deps, store, () => isDocumentActive(documentId), {
+          id: documentId,
           fileName: input.fileName,
           pdf,
         });
@@ -134,7 +158,6 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
         if (err instanceof ConversionAbortedError) {
           return;
         }
-        clearPdfStore(pdfStore);
         store.setError(documentId, viewerErrorFromUnknown(err));
         deps.pdfViewer.clear();
       }
@@ -144,7 +167,7 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
       const restoreId = deps.createDocumentId();
       activeRestoreId = restoreId;
 
-      const entry = await pdfStore.load();
+      const metas = await pdfStore.list();
       if (activeRestoreId !== restoreId) {
         return;
       }
@@ -152,12 +175,24 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
         activeRestoreId = undefined;
         return;
       }
+      if (metas.length === 0) {
+        activeRestoreId = undefined;
+        return;
+      }
+
+      store.setHistoryFromMetas(metas);
+      const latest = metas[0]!;
+      store.selectDocumentId(latest.id);
+
+      const entry = await pdfStore.get(latest.id);
+      if (activeRestoreId !== restoreId) {
+        return;
+      }
       if (entry === undefined) {
         activeRestoreId = undefined;
         return;
       }
 
-      store.setRestoredReady(restoreId, entry.fileName);
       deps.pdfViewer.show(entry.pdf);
       activeRestoreId = undefined;
     },
@@ -166,9 +201,80 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
       abortActiveConversion();
       activeDocumentId = undefined;
       activeRestoreId = undefined;
-      clearPdfStore(pdfStore);
-      store.clear();
+      activeSelectId = undefined;
+      store.clearSessionDocuments();
+      store.selectDocumentId(undefined);
       deps.pdfViewer.clear();
+    },
+
+    async selectDocument(id) {
+      const metasProbe = await pdfStore.list();
+      if (!metasProbe.some((meta) => meta.id === id)) {
+        return;
+      }
+
+      const selectId = deps.createDocumentId();
+      activeSelectId = selectId;
+      activeRestoreId = undefined;
+
+      abortActiveConversion();
+      activeDocumentId = undefined;
+
+      if (activeSelectId !== selectId) {
+        return;
+      }
+
+      const entry = await pdfStore.get(id);
+      if (activeSelectId !== selectId) {
+        return;
+      }
+      if (entry === undefined) {
+        return;
+      }
+
+      const metas = await pdfStore.list();
+      if (activeSelectId !== selectId) {
+        return;
+      }
+
+      store.clearSessionDocuments();
+      store.setHistoryFromMetas(metas);
+      store.selectDocumentId(id);
+      deps.pdfViewer.show(entry.pdf);
+      activeSelectId = undefined;
+    },
+
+    async deleteDocument(id) {
+      const metasBefore = await pdfStore.list();
+      if (!metasBefore.some((meta) => meta.id === id)) {
+        return;
+      }
+
+      const wasSelected = store.getState().selectedDocumentId === id;
+
+      await pdfStore.remove(id);
+      await syncHistoryState(pdfStore, store);
+
+      if (wasSelected) {
+        store.selectDocumentId(undefined);
+        deps.pdfViewer.clear();
+      }
+    },
+
+    async clearHistory() {
+      const stateBefore = store.getState();
+      const selectedId = stateBefore.selectedDocumentId;
+      const selectedWasHistory =
+        selectedId !== undefined && isHistoryDocumentId(stateBefore, selectedId);
+
+      await pdfStore.removeAll();
+      store.clearHistoryDocuments();
+      await syncHistoryState(pdfStore, store);
+
+      if (selectedWasHistory) {
+        store.selectDocumentId(undefined);
+        deps.pdfViewer.clear();
+      }
     },
 
     getState() {

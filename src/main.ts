@@ -5,14 +5,12 @@ import { createIframePdfViewer } from "./adapters/driven/pdf-viewer-iframe/ifram
 import { createPdfJsPdfViewer } from "./adapters/driven/pdf-viewer-pdfjs/pdfjs-pdf-viewer";
 import { createRequestId } from "./adapters/driven/postscript-converter/create-request-id";
 import { createWorkerPostScriptConverter } from "./adapters/driven/postscript-converter/worker-postscript-converter";
-import { applyFileLimitsNotice } from "./adapters/driving/dom/file-limits-notice";
-import { applyFooterSourceRepositoryLink } from "./adapters/driving/dom/footer-source-link";
-import { queryViewerDom, startViewerDomUi } from "./adapters/driving/dom/viewer-ui";
+import { mountViewerApp } from "./adapters/driving/dom/static-shell";
+import { queryViewerDom } from "./adapters/driving/dom/viewer-ui";
 import type { PdfViewer } from "./core/ports/pdf-viewer";
 import { createViewerApp } from "./core/usecases/create-viewer-app";
 
-applyFooterSourceRepositoryLink(BUILD_COMMIT_SHA);
-applyFileLimitsNotice();
+const connectViewerApp = mountViewerApp({ commitSha: BUILD_COMMIT_SHA });
 
 function navigatorHasBuiltInPdfViewer(): boolean {
   return navigator.pdfViewerEnabled === true;
@@ -40,7 +38,8 @@ const viewerApp = createViewerApp({
   pdfViewer,
   pdfStore,
   createDocumentId: createRequestId,
+  now: () => Date.now(),
 });
 
-startViewerDomUi(viewerDom, viewerApp);
+connectViewerApp(viewerApp);
 void viewerApp.restore();
