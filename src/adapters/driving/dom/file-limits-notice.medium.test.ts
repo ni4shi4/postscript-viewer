@@ -14,12 +14,21 @@ describe("FileLimitsNotice", () => {
     render(h(FileLimitsNotice, null), mount);
   });
 
-  it("shows configured byte and conversion time limits", () => {
+  it("shows configured byte and conversion time limits as labeled items", () => {
     const notice = document.querySelector<HTMLElement>('[data-testid="file-limits-notice"]');
     expect(notice).not.toBeNull();
+    expect(notice?.tagName).toBe("DL");
+
+    const terms = notice?.querySelectorAll("dt");
+    const definitions = notice?.querySelectorAll("dd");
+    expect(terms?.length).toBe(3);
+    expect(definitions?.length).toBe(3);
+
+    expect(notice?.textContent).toContain("ファイルサイズ");
     expect(notice?.textContent).toContain(formattedByteLimit("input"));
+    expect(notice?.textContent).toContain("展開後のサイズ");
     expect(notice?.textContent).toContain(formattedByteLimit("decompressed"));
+    expect(notice?.textContent).toContain("変換の制限時間");
     expect(notice?.textContent).toContain(formattedConversionTimeLimit());
-    expect(notice?.textContent).toContain("受け付ける上限");
   });
 });
