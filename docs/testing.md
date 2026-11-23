@@ -8,7 +8,7 @@
 | --- | --- | --- | --- | --- |
 | small | Application core 中心（primary port を駆動し secondary port にフェイク） | Vitest。外部 I/O なし | 100 ms 未満 | `*.small.test.ts` |
 | medium | アダプタ層の同一プロセス内結合（jsdom、フェイク `GhostscriptModule`、最小 WASM バイト列、`fetch` スタブなど） | Vitest。実wasm・実ブラウザは使わない | おおよそ 1 秒まで | `*.medium.test.ts` |
-| large | ビルド済みプレビュー上の PostScript 閲覧（E2E） | Playwright（Chromium）、`vite build` + `vite preview`、実wasm | 数秒〜数十秒 | `e2e/*.large.spec.ts` |
+| large | 実物を使う検証（adapter 単独の変換と、ビルド済みプレビュー上の PostScript 閲覧） | 実 wasm（Vitest または Playwright） | 数秒〜数十秒 | `*.large.test.ts` |
 
 ## テスト実装時の原則
 

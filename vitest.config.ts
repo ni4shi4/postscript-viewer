@@ -21,6 +21,15 @@ export default defineConfig({
           exclude: sharedExclude,
         },
       }),
+      defineProject({
+        test: {
+          name: "large",
+          include: ["src/**/*.large.test.ts"],
+          environment: "node",
+          exclude: sharedExclude,
+          testTimeout: 120_000,
+        },
+      }),
     ],
   },
 });

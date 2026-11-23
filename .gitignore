@@ -1,6 +1,8 @@
 node_modules/
 dist/
 public/gs.wasm
+src/generated/ghostscript/
+!src/generated/ghostscript/gs.d.ts
 .env*
 .dev.vars
 .dev.vars*
