@@ -69,10 +69,19 @@ const layoutHeightTolerancePx = 3;
 
 async function readViewerSurfaceLayout(page: Page) {
   return page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.pointerEvents = "none";
+    probe.style.height = "100dvh";
+    document.body.appendChild(probe);
+    const viewportHeightUsed = probe.getBoundingClientRect().height;
+    probe.remove();
+
     const selectors = {
       toolbar: ".toolbar",
       footer: ".app-footer",
-      viewer: "main.viewer",
+      historySidebar: '[data-testid="history-sidebar"]',
       viewerSurface: ".viewer-surface",
       pdfFrame: '[data-testid="pdf-frame"]',
     } as const;
@@ -83,7 +92,7 @@ async function readViewerSurfaceLayout(page: Page) {
     > = {
       toolbar: null,
       footer: null,
-      viewer: null,
+      historySidebar: null,
       viewerSurface: null,
       pdfFrame: null,
     };
@@ -98,62 +107,91 @@ async function readViewerSurfaceLayout(page: Page) {
     }
 
     return {
-      viewportHeight: window.innerHeight,
+      viewportHeightUsed,
       ...layout,
     };
   });
 }
 
-function expectMainViewerFillsRemainingViewport(
+function expectViewerSurfaceHeightMatchesViewport(
+  layout: Awaited<ReturnType<typeof readViewerSurfaceLayout>>,
+): void {
+  expect(layout.viewerSurface).not.toBeNull();
+  const { viewportHeightUsed } = layout;
+  const surfaceHeight = layout.viewerSurface!.height;
+
+  expect(surfaceHeight).toBeGreaterThan(viewportHeightUsed - layoutHeightTolerancePx);
+  expect(surfaceHeight).toBeLessThan(viewportHeightUsed + layoutHeightTolerancePx);
+}
+
+function expectViewerSurfaceFollowsToolbarWithFooterBelowViewport(
   layout: Awaited<ReturnType<typeof readViewerSurfaceLayout>>,
 ): void {
   expect(layout.toolbar).not.toBeNull();
   expect(layout.footer).not.toBeNull();
-  expect(layout.viewer).not.toBeNull();
+  expect(layout.viewerSurface).not.toBeNull();
 
   const toolbarBottom = layout.toolbar!.bottom;
-  const footerTop = layout.footer!.top;
-  const remainingHeight = footerTop - toolbarBottom;
+  const surfaceTop = layout.viewerSurface!.top;
+  const { viewportHeightUsed } = layout;
 
-  expect(remainingHeight).toBeGreaterThan(150);
-  expect(layout.viewer!.height).toBeGreaterThan(remainingHeight - layoutHeightTolerancePx);
-  expect(layout.viewer!.height).toBeLessThan(remainingHeight + layoutHeightTolerancePx);
-  expect(layout.viewer!.top).toBeGreaterThan(toolbarBottom - layoutHeightTolerancePx);
-  expect(layout.viewer!.top).toBeLessThan(toolbarBottom + layoutHeightTolerancePx);
-  expect(layout.viewer!.bottom).toBeGreaterThan(footerTop - layoutHeightTolerancePx);
-  expect(layout.viewer!.bottom).toBeLessThan(footerTop + layoutHeightTolerancePx);
+  expect(surfaceTop).toBeGreaterThan(toolbarBottom - layoutHeightTolerancePx);
+  expect(surfaceTop).toBeLessThan(toolbarBottom + layoutHeightTolerancePx);
+  expect(layout.footer!.top).toBeGreaterThan(viewportHeightUsed - layoutHeightTolerancePx);
+  expect(layout.footer!.top).toBeGreaterThanOrEqual(
+    layout.viewerSurface!.bottom - layoutHeightTolerancePx,
+  );
 }
 
-function expectPdfFrameFillsMainViewer(
+function expectHistorySidebarMatchesViewerSurfaceHeight(
   layout: Awaited<ReturnType<typeof readViewerSurfaceLayout>>,
 ): void {
-  expect(layout.viewer).not.toBeNull();
-  expect(layout.pdfFrame).not.toBeNull();
+  expect(layout.historySidebar).not.toBeNull();
+  expect(layout.viewerSurface).not.toBeNull();
 
-  const viewerHeight = layout.viewer!.height;
-  const viewerTop = layout.viewer!.top;
-  const viewerBottom = layout.viewer!.bottom;
+  const sidebarHeight = layout.historySidebar!.height;
+  const surfaceHeight = layout.viewerSurface!.height;
 
-  expect(layout.pdfFrame!.height).toBeGreaterThan(150);
-  expect(layout.pdfFrame!.height).toBeGreaterThan(viewerHeight - layoutHeightTolerancePx);
-  expect(layout.pdfFrame!.height).toBeLessThan(viewerHeight + layoutHeightTolerancePx);
-  expect(layout.pdfFrame!.top).toBeGreaterThan(viewerTop - layoutHeightTolerancePx);
-  expect(layout.pdfFrame!.top).toBeLessThan(viewerTop + layoutHeightTolerancePx);
-  expect(layout.pdfFrame!.bottom).toBeGreaterThan(viewerBottom - layoutHeightTolerancePx);
-  expect(layout.pdfFrame!.bottom).toBeLessThan(viewerBottom + layoutHeightTolerancePx);
+  expect(sidebarHeight).toBeGreaterThan(surfaceHeight - layoutHeightTolerancePx);
+  expect(sidebarHeight).toBeLessThan(surfaceHeight + layoutHeightTolerancePx);
 }
 
-test("fills the main viewer with the PDF preview between the toolbar and footer", async ({
-  page,
-}) => {
+function expectPdfFrameFillsViewerSurface(
+  layout: Awaited<ReturnType<typeof readViewerSurfaceLayout>>,
+): void {
+  expect(layout.viewerSurface).not.toBeNull();
+  expect(layout.pdfFrame).not.toBeNull();
+
+  const surfaceHeight = layout.viewerSurface!.height;
+  const surfaceTop = layout.viewerSurface!.top;
+  const surfaceBottom = layout.viewerSurface!.bottom;
+
+  expect(layout.pdfFrame!.height).toBeGreaterThan(150);
+  expect(layout.pdfFrame!.height).toBeGreaterThan(surfaceHeight - layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.height).toBeLessThan(surfaceHeight + layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.top).toBeGreaterThan(surfaceTop - layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.top).toBeLessThan(surfaceTop + layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.bottom).toBeGreaterThan(surfaceBottom - layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.bottom).toBeLessThan(surfaceBottom + layoutHeightTolerancePx);
+}
+
+test("keeps the viewer surface at the viewport height for the PDF preview", async ({ page }) => {
   const initialLayout = await readViewerSurfaceLayout(page);
-  expectMainViewerFillsRemainingViewport(initialLayout);
+  expectViewerSurfaceHeightMatchesViewport(initialLayout);
+  expectViewerSurfaceFollowsToolbarWithFooterBelowViewport(initialLayout);
+  expectHistorySidebarMatchesViewerSurfaceHeight(initialLayout);
 
   await convertPostScriptViaFilePicker(page, minimalPsPath);
 
   const convertedLayout = await readViewerSurfaceLayout(page);
-  expectMainViewerFillsRemainingViewport(convertedLayout);
-  expectPdfFrameFillsMainViewer(convertedLayout);
+  expectViewerSurfaceHeightMatchesViewport(convertedLayout);
+  expectViewerSurfaceFollowsToolbarWithFooterBelowViewport(convertedLayout);
+  expectHistorySidebarMatchesViewerSurfaceHeight(convertedLayout);
+  expectPdfFrameFillsViewerSurface(convertedLayout);
+
+  await page.setViewportSize({ width: 400, height: 720 });
+  const narrowLayout = await readViewerSurfaceLayout(page);
+  expectViewerSurfaceHeightMatchesViewport(narrowLayout);
 });
 
 test("displays a PDF blob when a gzip-compressed .ps.gz file is selected", async ({ page }) => {
