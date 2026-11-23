@@ -96,6 +96,8 @@ body {
   min-width: 0;
   font-size: 0.8125rem;
   color: var(--muted);
+  word-break: auto-phrase;
+  text-wrap: pretty;
 }
 
 .file-picker__input {
@@ -328,6 +330,8 @@ body {
   font-size: 0.8125rem;
   font-weight: 500;
   text-align: left;
+  word-break: auto-phrase;
+  text-wrap: pretty;
 }
 
 .notice--ok {
@@ -686,6 +690,8 @@ body {
   font-size: 0.78rem;
   line-height: 1.55;
   color: var(--muted);
+  word-break: auto-phrase;
+  text-wrap: pretty;
 }
 
 @media (max-width: 480px) {
@@ -695,6 +701,20 @@ body {
 
   .toolbar__row {
     min-height: 44px;
+  }
+
+  .toolbar-intro {
+    gap: 0.5rem;
+  }
+
+  .toolbar-actions {
+    gap: 0.35rem;
+  }
+
+  .toolbar-button {
+    gap: 0.2rem;
+    padding: 0 0.5rem;
+    white-space: nowrap;
   }
 
   .drop-stage {
