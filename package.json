@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite",
     "fetch:wasm": "node scripts/fetch-gs-wasm.mjs",
+    "build:wasm": "node scripts/build-gs-wasm.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "preview:e2e": "vite preview --config vite.config.e2e-preview.ts",
@@ -21,10 +22,11 @@
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "test": "vitest run",
+    "test": "vitest run --project small --project medium",
     "test:small": "vitest run --project small",
     "test:medium": "vitest run --project medium",
-    "test:large": "playwright test",
+    "test:large:adapter": "vitest run --project large",
+    "test:large": "npm run test:large:adapter && playwright test",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -34,7 +36,6 @@
     "*": "editorconfig-checker"
   },
   "dependencies": {
-    "ghostscript-wasm-esm": "1.0.1",
     "pako": "3.0.3",
     "pdfjs-dist": "6.5.438",
     "preact": "11.2.0"

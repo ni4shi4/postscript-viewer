@@ -4,6 +4,7 @@
 
 - Linux環境
 - asdf
+- Docker（自前ビルドする場合のみ必要）
 
 ## 開発手順
 
@@ -20,11 +21,10 @@
 
 ### ローカルでの画面確認
 
-1. `public/gs.wasm` を配置
+1. `public/gs.wasm` と `src/generated/ghostscript/gs.mjs` を配置
     ```bash
     npm run fetch:wasm
     ```
-    `ghostscript-wasm-esm` を更新したときは `sha256sum node_modules/ghostscript-wasm-esm/gs.wasm | awk '{print $1}' > gs-wasm.sha256` で `gs-wasm.sha256` を更新する。
 2. Vite 開発サーバーのホスト
     ```bash
     npm run dev -- --host
@@ -36,6 +36,13 @@
 vitest(small + medium)の実行
 ```bash
 npm test
+```
+
+adapter 単独 large（実 Ghostscript WASM）の実行
+```bash
+npm run build:wasm
+# または npm run fetch:wasm
+npm run test:large:adapter
 ```
 
 リンターとフォーマッターの実行
@@ -60,7 +67,7 @@ npm run build
     ```bash
     npx playwright install-deps chromium
     ```
-3. `public/gs.wasm` を用意する
+3. `public/gs.wasm` と `src/generated/ghostscript/gs.mjs` を用意
     ```bash
     npm run fetch:wasm
     ```
@@ -68,3 +75,18 @@ npm run build
     ```bash
     npm run test:large
     ```
+
+### Ghostscript WASM の自前ビルド
+
+1. Docker で自前ビルドして WASM を配置
+    ```bash
+    npm run build:wasm
+    ```
+
+### リリース成果物の作成
+
+1. `main` から Release を作成する
+    ```bash
+    gh workflow run "Release Ghostscript WASM" --ref main
+    ```
+2. 取得元タグを変えるときは `scripts/gs-wasm-assets.mjs` の `GS_WASM_RELEASE_TAG` を更新してから、上のワークフローを実行する

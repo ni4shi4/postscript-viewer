@@ -27,6 +27,15 @@ jobs:
       - run: npm ci
       - run: npm run test:small
 
+  lint:
+    needs: approval
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: asdf-vm/actions/install@v4
+      - run: npm ci
+      - run: npm run lint
+
   medium:
     needs: approval
     runs-on: ubuntu-latest
@@ -43,7 +52,15 @@ jobs:
       - uses: actions/checkout@v7
       - uses: asdf-vm/actions/install@v4
       - run: npm ci
-      - run: npm run fetch:wasm
+      - id: gs-wasm
+        uses: actions/cache@v6
+        with:
+          path: |
+            public/gs.wasm
+            src/generated/ghostscript/gs.mjs
+          key: gs-wasm-${{ hashFiles('docker/ghostscript-wasm/**', 'scripts/build-gs-wasm.mjs', 'scripts/gs-wasm-assets.mjs') }}
+      - if: steps.gs-wasm.outputs.cache-hit != 'true'
+        run: npm run build:wasm
       - run: npx playwright install --with-deps chromium
       - run: npm run test:large
       - if: always()

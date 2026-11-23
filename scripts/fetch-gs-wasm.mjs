@@ -1,95 +1,91 @@
 /**
- * Copy Ghostscript WASM (gs.wasm) from ghostscript-wasm-esm into public/gs.wasm.
+ * Fetch gs.wasm and gs.mjs from a GitHub release and install into the repo.
  */
 
-import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { createRequire } from "node:module";
-import { copyFile, mkdir, readFile, stat, unlink } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** Cloudflare Workers static asset limit per file (25 MiB). */
-const WORKERS_STATIC_ASSET_MAX_BYTES = 25 * 1024 * 1024;
-
-const GS_WASM_SHA256_FILE = "gs-wasm.sha256";
-
-const require = createRequire(import.meta.url);
-const packageRoot = path.dirname(require.resolve("ghostscript-wasm-esm/package.json"));
-const sourceWasm = path.join(packageRoot, "gs.wasm");
+import {
+  GS_GLUE_FILE_NAME,
+  GS_WASM_FILE_NAME,
+  installGsWasmAsset,
+  releaseAssetDownloadUrl,
+  removeInstalledGsAssets,
+  workersStaticAssetSizeError,
+} from "./gs-wasm-assets.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const destWasm = path.join(repoRoot, "public", "gs.wasm");
-const expectedHashPath = path.join(repoRoot, GS_WASM_SHA256_FILE);
+const destWasm = path.join(repoRoot, "public", GS_WASM_FILE_NAME);
+const destGlue = path.join(repoRoot, "src", "generated", "ghostscript", GS_GLUE_FILE_NAME);
+
+/** @type {ReadonlyArray<{ fileName: string; destPath: string }>} */
+const RELEASE_ASSETS = [
+  { fileName: GS_WASM_FILE_NAME, destPath: destWasm },
+  { fileName: GS_GLUE_FILE_NAME, destPath: destGlue },
+];
 
 /**
- * @param {string} filePath
- * @returns {Promise<string>} lowercase hex SHA-256
+ * @param {string} fileName
+ * @returns {Promise<{ ok: true; buffer: Buffer } | { ok: false; message: string }>}
  */
-async function computeFileSha256(filePath) {
-  return new Promise((resolve, reject) => {
-    const hash = createHash("sha256");
-    const stream = createReadStream(filePath);
-    stream.on("data", (chunk) => hash.update(chunk));
-    stream.on("end", () => resolve(hash.digest("hex")));
-    stream.on("error", reject);
-  });
-}
-
-/**
- * @param {string} hashFilePath
- * @returns {Promise<string>} lowercase hex SHA-256
- */
-async function readExpectedSha256(hashFilePath) {
-  const content = await readFile(hashFilePath, "utf8");
-  const token = content.trim().split(/\s+/)[0] ?? "";
-  if (!/^[a-f0-9]{64}$/i.test(token)) {
-    throw new Error(`invalid ${GS_WASM_SHA256_FILE}`);
+async function downloadReleaseAsset(fileName) {
+  const url = releaseAssetDownloadUrl(fileName);
+  let response;
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return { ok: false, message: `failed to fetch ${fileName} from ${url}: ${detail}` };
   }
-  return token.toLowerCase();
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      message: `failed to fetch ${fileName} from ${url}: HTTP ${String(response.status)}`,
+    };
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const sizeError = workersStaticAssetSizeError(buffer.length, fileName);
+  if (sizeError !== undefined) {
+    return { ok: false, message: sizeError };
+  }
+
+  return { ok: true, buffer };
 }
 
 /**
  * @returns {Promise<number>} process exit code
  */
 async function main() {
-  const { size } = await stat(sourceWasm);
-
-  if (size > WORKERS_STATIC_ASSET_MAX_BYTES) {
-    console.error(
-      `gs.wasm is ${size} bytes (limit ${WORKERS_STATIC_ASSET_MAX_BYTES}); not copying`,
-    );
-    return 1;
-  }
-
-  const actualHash = await computeFileSha256(sourceWasm);
-  let expectedHash;
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "gs-wasm-fetch-"));
   try {
-    expectedHash = await readExpectedSha256(expectedHashPath);
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : error);
-    return 1;
-  }
+    for (const { fileName } of RELEASE_ASSETS) {
+      const download = await downloadReleaseAsset(fileName);
+      if (!download.ok) {
+        console.error(download.message);
+        await removeInstalledGsAssets({ destWasm, destGlue });
+        return 1;
+      }
+      await writeFile(path.join(tempDir, fileName), download.buffer);
+    }
 
-  if (actualHash !== expectedHash) {
-    try {
-      await unlink(destWasm);
-    } catch (error) {
-      if (/** @type {NodeJS.ErrnoException} */ (error).code !== "ENOENT") {
-        throw error;
+    let wasmSize = 0;
+    for (const { fileName, destPath } of RELEASE_ASSETS) {
+      const tempPath = path.join(tempDir, fileName);
+      const size = await installGsWasmAsset({ sourcePath: tempPath, destPath });
+      if (fileName === GS_WASM_FILE_NAME) {
+        wasmSize = size;
       }
     }
-    console.error(
-      `gs.wasm SHA-256 mismatch (expected ${expectedHash}, got ${actualHash}); not copying`,
-    );
-    return 1;
+
+    console.log(wasmSize);
+    return 0;
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
   }
-
-  await mkdir(path.dirname(destWasm), { recursive: true });
-  await copyFile(sourceWasm, destWasm);
-
-  console.log(size);
-  return 0;
 }
 
 process.exit(await main());
