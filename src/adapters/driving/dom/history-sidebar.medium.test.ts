@@ -62,6 +62,9 @@ function createFakeViewerApp(
     async clearHistory() {
       clearHistoryCalls += 1;
     },
+    async readReadyPdf() {
+      return undefined;
+    },
     getSelectDocumentCalls: () => selectCalls,
     getDeleteDocumentCalls: () => deleteCalls,
     getClearHistoryCalls: () => clearHistoryCalls,

@@ -55,6 +55,41 @@ async function syncHistoryState(
   store.setHistoryFromMetas(metas);
 }
 
+type DisplayedReadyPdf = { id: string; fileName: string; pdf: Uint8Array };
+
+function confirmDisplayedPdf(
+  deps: CreateViewerAppDeps,
+  holder: { displayed: DisplayedReadyPdf | undefined },
+  entry: DisplayedReadyPdf,
+): void {
+  holder.displayed = entry;
+  deps.pdfViewer.show(entry.pdf);
+}
+
+function clearDisplayedPdf(
+  deps: CreateViewerAppDeps,
+  holder: { displayed: DisplayedReadyPdf | undefined },
+): void {
+  holder.displayed = undefined;
+  deps.pdfViewer.clear();
+}
+
+function readDisplayedReadyPdf(
+  store: ReturnType<typeof createViewerStore>,
+  displayed: DisplayedReadyPdf | undefined,
+  id: string,
+): { fileName: string; pdf: Uint8Array } | undefined {
+  if (displayed === undefined || displayed.id !== id) {
+    return undefined;
+  }
+  const state = store.getState();
+  const selected = selectedViewerDocument(state);
+  if (selected === undefined || selected.id !== id || selected.status.kind !== "ready") {
+    return undefined;
+  }
+  return { fileName: displayed.fileName, pdf: displayed.pdf };
+}
+
 async function putReadyPdf(
   deps: CreateViewerAppDeps,
   store: ReturnType<typeof createViewerStore>,
@@ -99,6 +134,9 @@ function isHistoryDocumentId(
 export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
   const store = createViewerStore();
   const { pdfStore } = deps;
+  const displayedHolder: { displayed: DisplayedReadyPdf | undefined } = {
+    displayed: undefined,
+  };
   let activeDocumentId: string | undefined;
   let activeRestoreId: string | undefined;
   let activeSelectId: string | undefined;
@@ -118,7 +156,7 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
     activeSelectId = undefined;
     store.clearSessionDocuments();
     store.selectDocumentId(undefined);
-    deps.pdfViewer.clear();
+    clearDisplayedPdf(deps, displayedHolder);
   };
 
   const isDocumentActive = (documentId: string): boolean => activeDocumentId === documentId;
@@ -135,7 +173,7 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
       const { signal } = abortController;
 
       store.beginConverting(documentId, input.fileName, { kind: "started" });
-      deps.pdfViewer.clear();
+      clearDisplayedPdf(deps, displayedHolder);
 
       try {
         const postScript = readPostScriptBytes(input.fileName, input.data);
@@ -154,8 +192,12 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
           return;
         }
 
+        confirmDisplayedPdf(deps, displayedHolder, {
+          id: documentId,
+          fileName: input.fileName,
+          pdf,
+        });
         store.setReady(documentId);
-        deps.pdfViewer.show(pdf);
         void putReadyPdf(deps, store, () => isDocumentActive(documentId), {
           id: documentId,
           fileName: input.fileName,
@@ -169,7 +211,7 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
           return;
         }
         store.setError(documentId, viewerErrorFromUnknown(err));
-        deps.pdfViewer.clear();
+        clearDisplayedPdf(deps, displayedHolder);
       }
     },
 
@@ -192,7 +234,6 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
 
       store.setHistoryFromMetas(metas);
       const latest = metas[0]!;
-      store.selectDocumentId(latest.id);
 
       const entry = await pdfStore.get(latest.id);
       if (activeRestoreId !== restoreId) {
@@ -203,7 +244,12 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
         return;
       }
 
-      deps.pdfViewer.show(entry.pdf);
+      confirmDisplayedPdf(deps, displayedHolder, {
+        id: latest.id,
+        fileName: entry.fileName,
+        pdf: entry.pdf,
+      });
+      store.selectDocumentId(latest.id);
       activeRestoreId = undefined;
     },
 
@@ -222,7 +268,7 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
       activeRestoreId = undefined;
       activeSelectId = undefined;
       store.selectDocumentId(undefined);
-      deps.pdfViewer.clear();
+      clearDisplayedPdf(deps, displayedHolder);
     },
 
     async selectDocument(id) {
@@ -257,8 +303,12 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
 
       store.clearSessionDocuments();
       store.setHistoryFromMetas(metas);
+      confirmDisplayedPdf(deps, displayedHolder, {
+        id,
+        fileName: entry.fileName,
+        pdf: entry.pdf,
+      });
       store.selectDocumentId(id);
-      deps.pdfViewer.show(entry.pdf);
       activeSelectId = undefined;
     },
 
@@ -275,7 +325,7 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
 
       if (wasSelected) {
         store.selectDocumentId(undefined);
-        deps.pdfViewer.clear();
+        clearDisplayedPdf(deps, displayedHolder);
       }
     },
 
@@ -291,8 +341,12 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
 
       if (selectedWasHistory) {
         store.selectDocumentId(undefined);
-        deps.pdfViewer.clear();
+        clearDisplayedPdf(deps, displayedHolder);
       }
+    },
+
+    async readReadyPdf(id) {
+      return readDisplayedReadyPdf(store, displayedHolder.displayed, id);
     },
 
     getState() {

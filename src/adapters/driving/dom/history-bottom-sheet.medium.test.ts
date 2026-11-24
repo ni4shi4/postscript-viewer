@@ -46,6 +46,9 @@ function createFakeViewerApp(initial: ViewerState = EMPTY): Fake {
     },
     async deleteDocument() {},
     async clearHistory() {},
+    async readReadyPdf() {
+      return undefined;
+    },
     selectCalls,
   };
 }
