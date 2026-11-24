@@ -150,6 +150,11 @@ function logViewerErrorIfNeeded(
   lastLoggedErrorKey.current = errorKey;
 }
 
+async function openPostScriptFile(app: ViewerApp, file: File): Promise<void> {
+  const data = new Uint8Array(await file.arrayBuffer());
+  await app.openPostScript({ fileName: file.name, data });
+}
+
 function bindFileInputToViewerApp(fileInput: HTMLInputElement, app: ViewerApp): () => void {
   const onChange = (): void => {
     const file = fileInput.files?.[0];
@@ -157,10 +162,7 @@ function bindFileInputToViewerApp(fileInput: HTMLInputElement, app: ViewerApp): 
       return;
     }
 
-    void (async () => {
-      const data = new Uint8Array(await file.arrayBuffer());
-      await app.openPostScript({ fileName: file.name, data });
-    })().finally(() => {
+    void openPostScriptFile(app, file).finally(() => {
       resetFileInputSelection(fileInput);
     });
   };
@@ -206,6 +208,89 @@ export function useViewerDomUi(
   }, [app, fileInputRef]);
 
   return state;
+}
+
+function hasDraggedFiles(event: DragEvent): boolean {
+  return Array.from(event.dataTransfer?.types ?? []).includes("Files");
+}
+
+// 表示領域の外（サイドバーなど）にドロップしても、ブラウザが既定動作でファイルを開かないようにする。
+export function usePreventBrowserFileDrop(): void {
+  useEffect(() => {
+    const prevent = (event: DragEvent): void => {
+      if (hasDraggedFiles(event)) {
+        event.preventDefault();
+      }
+    };
+    document.addEventListener("dragover", prevent);
+    document.addEventListener("drop", prevent);
+    return () => {
+      document.removeEventListener("dragover", prevent);
+      document.removeEventListener("drop", prevent);
+    };
+  }, []);
+}
+
+export type FileDropTarget = {
+  dragging: boolean;
+  handlers: {
+    onDragEnter: (event: DragEvent) => void;
+    onDragOver: (event: DragEvent) => void;
+    onDragLeave: (event: DragEvent) => void;
+    onDrop: (event: DragEvent) => void;
+  };
+};
+
+export function useFileDropTarget(app: ViewerApp | undefined): FileDropTarget {
+  const [dragging, setDragging] = useState(false);
+  // 子要素をまたぐ移動で dragenter / dragleave が対になって発火するため、深さを数えて判定する。
+  const depth = useRef(0);
+
+  const endDrag = (): void => {
+    depth.current = 0;
+    setDragging(false);
+  };
+
+  return {
+    dragging,
+    handlers: {
+      onDragEnter(event) {
+        if (!hasDraggedFiles(event)) {
+          return;
+        }
+        event.preventDefault();
+        depth.current += 1;
+        setDragging(true);
+      },
+      onDragOver(event) {
+        if (!hasDraggedFiles(event)) {
+          return;
+        }
+        event.preventDefault();
+      },
+      onDragLeave(event) {
+        if (!hasDraggedFiles(event)) {
+          return;
+        }
+        depth.current = Math.max(0, depth.current - 1);
+        if (depth.current === 0) {
+          setDragging(false);
+        }
+      },
+      onDrop(event) {
+        if (!hasDraggedFiles(event)) {
+          return;
+        }
+        event.preventDefault();
+        endDrag();
+        const file = event.dataTransfer?.files?.[0];
+        if (file === undefined || app === undefined) {
+          return;
+        }
+        void openPostScriptFile(app, file);
+      },
+    },
+  };
 }
 
 export function ViewerFileName({ state }: { state: ViewerState }) {

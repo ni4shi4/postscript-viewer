@@ -9,11 +9,14 @@ export function FileLimitsNotice() {
       class="file-limits-notice"
       data-file-limits
       data-testid="file-limits-notice"
+      aria-label="受け付ける上限"
     >
-      {items.flatMap((item) => [
-        <dt key={`${item.label}-term`}>{item.label}</dt>,
-        <dd key={`${item.label}-value`}>{item.value}</dd>,
-      ])}
+      {items.map((item) => (
+        <div key={item.label} class="chip">
+          <dt>{item.label}</dt>
+          <dd>{item.value}</dd>
+        </div>
+      ))}
     </dl>
   );
 }
