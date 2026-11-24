@@ -588,50 +588,113 @@ body {
   background: var(--accent-soft);
 }
 
-.history-drawer__scrim,
-.history-drawer {
-  position: absolute;
-  z-index: 20;
+.history-sheet__scrim,
+.history-sheet {
+  position: fixed;
+  z-index: 30;
 }
 
-.history-drawer__scrim {
+.history-sheet__scrim {
   inset: 0;
   background: rgba(16, 24, 40, 0.35);
+  animation: history-sheet-fade 0.2s ease-out;
 }
 
-.history-drawer {
-  top: 0;
+.history-sheet {
+  left: 0;
   right: 0;
   bottom: 0;
   box-sizing: border-box;
-  width: 80%;
+  max-height: 70vh;
+  max-height: 70dvh;
   display: flex;
   flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-radius: 16px 16px 0 0;
   background: var(--surface);
-  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+  animation: history-sheet-slide 0.25s ease-out;
 }
 
-.history-drawer:focus {
+.history-sheet:focus {
   outline: none;
 }
 
-.history-drawer .history-sidebar__heading {
-  padding-top: 20px;
+.history-sheet__grabber {
+  flex: none;
+  width: 36px;
+  height: 4px;
+  margin: 8px auto 0;
+  border-radius: 2px;
+  background: var(--border-strong);
 }
 
-.history-drawer .history-item__select,
-.history-drawer .history-item__delete,
-.history-drawer .history-sidebar__clear-all {
+.history-sheet__top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 16px;
+}
+
+.history-sheet__heading {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.history-sheet__close {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.history-sheet .history-item__select,
+.history-sheet .history-item__delete,
+.history-sheet .history-sidebar__clear-all {
   min-height: 44px;
 }
 
-.history-drawer .history-item__delete {
+.history-sheet .history-item__delete {
   width: 44px;
   margin-right: 0;
 }
 
-.history-drawer .history-sidebar__clear-all {
+.history-sheet .history-sidebar__clear-all {
   padding: 0 0.75rem;
+}
+
+@keyframes history-sheet-slide {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes history-sheet-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-sheet__scrim,
+  .history-sheet {
+    animation: none;
+  }
 }
 
 .toolbar__row {

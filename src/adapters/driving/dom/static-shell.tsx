@@ -9,7 +9,7 @@ import { AppFooter, type AppFooterProps } from "./footer-source-link";
 import { useCompactViewport } from "./compact-viewport";
 import {
   ClockIcon,
-  HistoryDrawer,
+  HistoryBottomSheet,
   HistorySidebar,
   PlusIcon,
   readyHistoryDocuments,
@@ -62,10 +62,10 @@ function CompactToolbarActions(props: CompactToolbarActionsProps) {
         <button
           type="button"
           class="toolbar-button"
-          data-testid="history-drawer-button"
+          data-testid="history-sheet-button"
           aria-haspopup="dialog"
           aria-expanded={props.historyOpen}
-          aria-controls="history-drawer"
+          aria-controls="history-sheet"
           ref={props.historyButtonRef}
           onClick={props.onToggleHistory}
         >
@@ -217,28 +217,28 @@ export function App({ commitSha, app }: AppProps) {
   const focusPickButtonAfterClose = useRef(false);
 
   const compact = useCompactViewport();
-  // スマホのドロワー開閉は一時的な状態。PC のサイドバーの保存値（localStorage）とは独立している。
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // スマホのボトムシート開閉は一時的な状態。PC のサイドバーの保存値（localStorage）とは独立している。
+  const [sheetOpen, setSheetOpen] = useState(false);
   const historyButtonRef = useRef<HTMLButtonElement>(null);
   const hasHistory = readyHistoryDocuments(viewerState).length > 0;
-  const drawerShown = compact && hasHistory && drawerOpen;
-  const closeDrawer = useCallback((): void => {
-    setDrawerOpen(false);
+  const sheetShown = compact && hasHistory && sheetOpen;
+  const closeSheet = useCallback((): void => {
+    setSheetOpen(false);
   }, []);
 
   useEffect(() => {
     if (!compact || !hasHistory) {
-      setDrawerOpen(false);
+      setSheetOpen(false);
     }
   }, [compact, hasHistory]);
 
-  const wasDrawerShown = useRef(false);
+  const wasSheetShown = useRef(false);
   useEffect(() => {
-    if (wasDrawerShown.current && !drawerShown) {
+    if (wasSheetShown.current && !sheetShown) {
       historyButtonRef.current?.focus();
     }
-    wasDrawerShown.current = drawerShown;
-  }, [drawerShown]);
+    wasSheetShown.current = sheetShown;
+  }, [sheetShown]);
 
   const pdfShown = isPdfShown(viewerState);
 
@@ -248,7 +248,7 @@ export function App({ commitSha, app }: AppProps) {
       return;
     }
     focusPickButtonAfterClose.current = true;
-    setDrawerOpen(false);
+    setSheetOpen(false);
     app.closeDocument();
   };
 
@@ -268,11 +268,11 @@ export function App({ commitSha, app }: AppProps) {
           {compact ? (
             <CompactToolbarActions
               showHistory={hasHistory}
-              historyOpen={drawerShown}
+              historyOpen={sheetShown}
               showConvert={pdfShown}
               historyButtonRef={historyButtonRef}
               onToggleHistory={() => {
-                setDrawerOpen(!drawerOpen);
+                setSheetOpen(!sheetOpen);
               }}
               onConvertAnother={convertAnother}
             />
@@ -291,7 +291,7 @@ export function App({ commitSha, app }: AppProps) {
           ref={fileInputRef}
         />
         {compact ? (
-          <HistoryDrawer app={app} state={viewerState} open={drawerOpen} onClose={closeDrawer} />
+          <HistoryBottomSheet app={app} state={viewerState} open={sheetOpen} onClose={closeSheet} />
         ) : (
           <HistorySidebar
             app={app}

@@ -102,7 +102,7 @@ function pressEscape(): void {
   });
 }
 
-describe("compact viewport history drawer", () => {
+describe("compact viewport history bottom sheet", () => {
   beforeEach(() => {
     document.body.replaceChildren();
     window.localStorage.clear();
@@ -128,18 +128,18 @@ describe("compact viewport history drawer", () => {
   it("shows the history button only with history and the convert button only with a PDF", () => {
     const app = createFakeViewerApp();
     mountApp(app);
-    expect(byTestId("history-drawer-button")).toBeNull();
+    expect(byTestId("history-sheet-button")).toBeNull();
     expect(byTestId("compact-convert")).toBeNull();
 
     setState(app, history(false));
-    expect(byTestId("history-drawer-button")?.textContent).toContain("履歴");
+    expect(byTestId("history-sheet-button")?.textContent).toContain("履歴");
     expect(byTestId("compact-convert")).toBeNull();
 
     setState(app, history(true));
     expect(byTestId("compact-convert")?.textContent).toContain("変換");
     const buttons = Array.from(document.querySelectorAll("header button"));
     expect(buttons.map((b) => b.getAttribute("data-testid"))).toEqual([
-      "history-drawer-button",
+      "history-sheet-button",
       "compact-convert",
     ]);
   });
@@ -186,92 +186,106 @@ describe("compact viewport history drawer", () => {
 
     expect(byTestId("drop-card")?.hidden).toBe(false);
     expect(byTestId("compact-convert")).toBeNull();
-    expect(byTestId("history-drawer-button")).not.toBeNull();
-    expect(byTestId("history-drawer")).toBeNull();
+    expect(byTestId("history-sheet-button")).not.toBeNull();
+    expect(byTestId("history-sheet")).toBeNull();
     const pickButton = Array.from(byTestId("drop-card")?.querySelectorAll("button") ?? []).find(
       (button) => button.textContent === "ファイルを選択",
     );
     expect(document.activeElement).toBe(pickButton);
     expect(opens).toBe(0);
 
-    click("history-drawer-button");
+    click("history-sheet-button");
     expect(document.querySelectorAll('[data-testid="history-item"]')).toHaveLength(1);
   });
 
   it("opens a modal dialog with the history list and focus inside, without the convert-another button", () => {
     const app = createFakeViewerApp(history(true));
     mountApp(app);
-    expect(byTestId("history-drawer")).toBeNull();
+    expect(byTestId("history-sheet")).toBeNull();
 
-    click("history-drawer-button");
-    const drawer = byTestId("history-drawer");
-    expect(drawer?.getAttribute("role")).toBe("dialog");
-    expect(drawer?.getAttribute("aria-modal")).toBe("true");
-    expect(drawer?.textContent).toContain("変換履歴");
-    expect(drawer?.querySelectorAll('[data-testid="history-item"]')).toHaveLength(2);
+    click("history-sheet-button");
+    const sheet = byTestId("history-sheet");
+    expect(sheet?.getAttribute("role")).toBe("dialog");
+    expect(sheet?.getAttribute("aria-modal")).toBe("true");
+    expect(sheet?.textContent).toContain("変換履歴");
+    expect(sheet?.querySelectorAll('[data-testid="history-item"]')).toHaveLength(2);
     expect(byTestId("history-clear-all")).not.toBeNull();
     expect(byTestId("history-convert-another")).toBeNull();
-    expect(drawer?.contains(document.activeElement)).toBe(true);
-    expect(byTestId("history-drawer-button")?.getAttribute("aria-expanded")).toBe("true");
+    expect(sheet?.contains(document.activeElement)).toBe(true);
+    expect(byTestId("history-sheet-button")?.getAttribute("aria-expanded")).toBe("true");
   });
 
   it("closes on scrim tap, Escape, and item selection, returning focus to the button", () => {
     const app = createFakeViewerApp(history(true));
     mountApp(app);
 
-    click("history-drawer-button");
-    click("history-drawer-scrim");
-    expect(byTestId("history-drawer")).toBeNull();
-    expect(document.activeElement).toBe(byTestId("history-drawer-button"));
+    click("history-sheet-button");
+    click("history-sheet-scrim");
+    expect(byTestId("history-sheet")).toBeNull();
+    expect(document.activeElement).toBe(byTestId("history-sheet-button"));
 
-    click("history-drawer-button");
+    click("history-sheet-button");
     pressEscape();
-    expect(byTestId("history-drawer")).toBeNull();
+    expect(byTestId("history-sheet")).toBeNull();
 
-    click("history-drawer-button");
+    click("history-sheet-button");
     act(() => {
       document.querySelector<HTMLButtonElement>(".history-item__select")?.click();
     });
     expect(app.selectCalls).toEqual(["a"]);
-    expect(byTestId("history-drawer")).toBeNull();
+    expect(byTestId("history-sheet")).toBeNull();
+  });
+
+  it("has a close button with an accessible name that closes the sheet and returns focus", () => {
+    const app = createFakeViewerApp(history(true));
+    mountApp(app);
+
+    click("history-sheet-button");
+    const close = byTestId("history-sheet-close");
+    expect(close?.getAttribute("aria-label")).toBe("閉じる");
+    expect(byTestId("history-sheet")?.contains(close ?? null)).toBe(true);
+
+    click("history-sheet-close");
+    expect(byTestId("history-sheet")).toBeNull();
+    expect(document.activeElement).toBe(byTestId("history-sheet-button"));
   });
 
   it("toggles with the history button", () => {
     const app = createFakeViewerApp(history(true));
     mountApp(app);
-    click("history-drawer-button");
-    click("history-drawer-button");
-    expect(byTestId("history-drawer")).toBeNull();
+    click("history-sheet-button");
+    click("history-sheet-button");
+    expect(byTestId("history-sheet")).toBeNull();
   });
 
   it("does not open by itself after remount and does not touch the sidebar preference", () => {
     const app = createFakeViewerApp(history(true));
     mountApp(app);
-    click("history-drawer-button");
+    click("history-sheet-button");
     expect(window.localStorage.length).toBe(0);
 
     mountApp(createFakeViewerApp(history(true)));
-    expect(byTestId("history-drawer")).toBeNull();
+    expect(byTestId("history-sheet")).toBeNull();
 
-    // PC で閉じた保存値があっても、スマホのドロワーは閉じた状態から始まり、開閉で保存値は変わらない。
+    // PC で閉じた保存値があっても、スマホのシートは閉じた状態から始まり、開閉で保存値は変わらない。
     window.localStorage.setItem("history-sidebar-open", "true");
     mountApp(createFakeViewerApp(history(true)));
-    click("history-drawer-button");
-    click("history-drawer-scrim");
+    click("history-sheet-button");
+    click("history-sheet-scrim");
     expect(window.localStorage.getItem("history-sidebar-open")).toBe("true");
   });
 
-  it("closes the drawer when the history becomes empty and stays closed when it returns", () => {
+  it("closes the sheet when the history becomes empty and stays closed when it returns", () => {
     const app = createFakeViewerApp(history(true));
     mountApp(app);
-    click("history-drawer-button");
+    click("history-sheet-button");
 
     setState(app, EMPTY);
-    expect(byTestId("history-drawer")).toBeNull();
-    expect(byTestId("history-drawer-button")).toBeNull();
+    expect(byTestId("history-sheet")).toBeNull();
+    expect(byTestId("history-sheet-button")).toBeNull();
 
     setState(app, history(false));
-    expect(byTestId("history-drawer")).toBeNull();
+    expect(byTestId("history-sheet")).toBeNull();
   });
 });
 
@@ -285,12 +299,12 @@ describe("wide viewport", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps the sidebar and the description in the header, with no drawer buttons", () => {
+  it("keeps the sidebar and the description in the header, with no sheet buttons", () => {
     const app = createFakeViewerApp(history(true));
     mountApp(app);
 
     expect(byTestId("history-sidebar")).not.toBeNull();
-    expect(byTestId("history-drawer-button")).toBeNull();
+    expect(byTestId("history-sheet-button")).toBeNull();
     expect(byTestId("compact-convert")).toBeNull();
     expect(document.querySelector("header")?.textContent).toContain(DESCRIPTION);
   });

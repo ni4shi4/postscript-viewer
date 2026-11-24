@@ -209,16 +209,16 @@ function HistoryList({ app, state, entries, onSelect }: HistoryListProps) {
 
 const FOCUSABLE_SELECTOR = "button:not([disabled]), [href], input, [tabindex]:not([tabindex='-1'])";
 
-export type HistoryDrawerProps = {
+export type HistoryBottomSheetProps = {
   app: ViewerApp | undefined;
   state: ViewerState;
   open: boolean;
   onClose: () => void;
 };
 
-// スマホ用。PDF の上に重なる右側のドロワー。開閉は呼び出し側の一時的な状態で、保存しない。
-export function HistoryDrawer({ app, state, open, onClose }: HistoryDrawerProps) {
-  const drawerRef = useRef<HTMLDivElement>(null);
+// スマホ用。画面下からせり上がるモーダルのボトムシート。開閉は呼び出し側の一時的な状態で、保存しない。
+export function HistoryBottomSheet({ app, state, open, onClose }: HistoryBottomSheetProps) {
+  const sheetRef = useRef<HTMLDivElement>(null);
   const entries = readyHistoryDocuments(state);
   const visible = open && entries.length > 0;
 
@@ -226,7 +226,7 @@ export function HistoryDrawer({ app, state, open, onClose }: HistoryDrawerProps)
     if (!visible) {
       return;
     }
-    drawerRef.current?.focus();
+    sheetRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -236,11 +236,11 @@ export function HistoryDrawer({ app, state, open, onClose }: HistoryDrawerProps)
       if (event.key !== "Tab") {
         return;
       }
-      const drawer = drawerRef.current;
-      if (drawer === null) {
+      const sheet = sheetRef.current;
+      if (sheet === null) {
         return;
       }
-      const focusable = Array.from(drawer.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+      const focusable = Array.from(sheet.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (first === undefined || last === undefined) {
@@ -248,13 +248,13 @@ export function HistoryDrawer({ app, state, open, onClose }: HistoryDrawerProps)
         return;
       }
       const active = document.activeElement;
-      if (event.shiftKey && (active === first || active === drawer)) {
+      if (event.shiftKey && (active === first || active === sheet)) {
         event.preventDefault();
         last.focus();
       } else if (!event.shiftKey && active === last) {
         event.preventDefault();
         first.focus();
-      } else if (active !== null && !drawer.contains(active)) {
+      } else if (active !== null && !sheet.contains(active)) {
         event.preventDefault();
         first.focus();
       }
@@ -271,20 +271,34 @@ export function HistoryDrawer({ app, state, open, onClose }: HistoryDrawerProps)
 
   return (
     <>
-      <div class="history-drawer__scrim" data-testid="history-drawer-scrim" onClick={onClose} />
+      <div class="history-sheet__scrim" data-testid="history-sheet-scrim" onClick={onClose} />
       <div
-        id="history-drawer"
-        class="history-drawer"
-        data-testid="history-drawer"
+        id="history-sheet"
+        class="history-sheet"
+        data-testid="history-sheet"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="history-drawer-heading"
+        aria-labelledby="history-sheet-heading"
         tabIndex={-1}
-        ref={drawerRef}
+        ref={sheetRef}
       >
-        <h2 id="history-drawer-heading" class="history-sidebar__heading">
-          変換履歴
-        </h2>
+        <div class="history-sheet__grabber" aria-hidden="true" />
+        <div class="history-sheet__top">
+          <h2 id="history-sheet-heading" class="history-sheet__heading">
+            変換履歴
+          </h2>
+          <button
+            type="button"
+            class="history-sheet__close"
+            data-testid="history-sheet-close"
+            aria-label="閉じる"
+            onClick={onClose}
+          >
+            <Svg>
+              <path d="M6 6l12 12M18 6L6 18" />
+            </Svg>
+          </button>
+        </div>
         <div class="history-sidebar__scroll">
           <HistoryList app={app} state={state} entries={entries} onSelect={onClose} />
         </div>
