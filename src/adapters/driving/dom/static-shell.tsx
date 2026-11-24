@@ -47,7 +47,7 @@ type CompactToolbarActionsProps = {
   showConvert: boolean;
   historyButtonRef: { current: HTMLButtonElement | null };
   onToggleHistory: () => void;
-  onPickFile: () => void;
+  onConvertAnother: () => void;
 };
 
 function CompactToolbarActions(props: CompactToolbarActionsProps) {
@@ -73,7 +73,7 @@ function CompactToolbarActions(props: CompactToolbarActionsProps) {
           type="button"
           class="btn-primary toolbar-button toolbar-button--primary"
           data-testid="compact-convert"
-          onClick={props.onPickFile}
+          onClick={props.onConvertAnother}
         >
           <PlusIcon />
           変換
@@ -146,7 +146,13 @@ function DropOverlay({ state }: { state: ViewerState }) {
   );
 }
 
-function DropCard({ state, onPickFile }: { state: ViewerState; onPickFile: () => void }) {
+type DropCardProps = {
+  state: ViewerState;
+  onPickFile: () => void;
+  pickButtonRef: { current: HTMLButtonElement | null };
+};
+
+function DropCard({ state, onPickFile, pickButtonRef }: DropCardProps) {
   return (
     <div class="drop-stage" data-testid="drop-card" hidden={isPdfShown(state)}>
       <section class="drop-card" aria-labelledby="drop-card-heading">
@@ -172,7 +178,7 @@ function DropCard({ state, onPickFile }: { state: ViewerState; onPickFile: () =>
         </h2>
         <p class="drop-card__formats">.ps / .ps.gz に対応しています</p>
         <p class="drop-card__or drop-card__pointer-only">または</p>
-        <button type="button" class="btn-primary" onClick={onPickFile}>
+        <button type="button" class="btn-primary" ref={pickButtonRef} onClick={onPickFile}>
           ファイルを選択
         </button>
         <div class="drop-card__document">
@@ -202,6 +208,9 @@ export function App({ commitSha, app }: AppProps) {
     fileInputRef.current?.click();
   };
 
+  const pickButtonRef = useRef<HTMLButtonElement>(null);
+  const focusPickButtonAfterClose = useRef(false);
+
   const compact = useCompactViewport();
   // スマホのドロワー開閉は一時的な状態。PC のサイドバーの保存値（localStorage）とは独立している。
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -228,6 +237,24 @@ export function App({ commitSha, app }: AppProps) {
 
   const pdfShown = isPdfShown(viewerState);
 
+  // 「PDF を表示していない状態では必ずドロップゾーン」に揃えるため、変換ボタンは表示中の PDF を閉じて戻るだけ。
+  const convertAnother = (): void => {
+    if (app === undefined) {
+      return;
+    }
+    focusPickButtonAfterClose.current = true;
+    setDrawerOpen(false);
+    app.closeDocument();
+  };
+
+  // 押したボタン自体が消えるため、フォーカスが body に落ちないようカードの「ファイルを選択」へ移す。
+  useEffect(() => {
+    if (focusPickButtonAfterClose.current && !pdfShown) {
+      focusPickButtonAfterClose.current = false;
+      pickButtonRef.current?.focus();
+    }
+  }, [pdfShown]);
+
   return (
     <>
       <header class={compact ? "toolbar toolbar--compact" : "toolbar"}>
@@ -242,7 +269,7 @@ export function App({ commitSha, app }: AppProps) {
               onToggleHistory={() => {
                 setDrawerOpen(!drawerOpen);
               }}
-              onPickFile={openFilePicker}
+              onConvertAnother={convertAnother}
             />
           ) : null}
         </div>
@@ -265,7 +292,7 @@ export function App({ commitSha, app }: AppProps) {
             app={app}
             state={viewerState}
             canConvertAnother={pdfShown}
-            onPickFile={openFilePicker}
+            onConvertAnother={convertAnother}
           />
         )}
         <div
@@ -275,7 +302,7 @@ export function App({ commitSha, app }: AppProps) {
           {...dropTarget.handlers}
         >
           <ViewerMain />
-          <DropCard state={viewerState} onPickFile={openFilePicker} />
+          <DropCard state={viewerState} onPickFile={openFilePicker} pickButtonRef={pickButtonRef} />
           {dropTarget.dragging ? <DropOverlay state={viewerState} /> : null}
         </div>
       </main>

@@ -651,4 +651,89 @@ describe("createViewerApp", () => {
     expect(app.getState().selectedDocumentId).toBeUndefined();
     expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
   });
+
+  describe("closeDocument", () => {
+    it("deselects the displayed PDF and hides it while keeping the history", async () => {
+      const { app, postScriptConverter, pdfStore, pdfViewer } = createTestViewerApp();
+      const openPromise = app.openPostScript({ fileName: "sample.ps", data: POSTSCRIPT_BYTES });
+      await waitForConversions(postScriptConverter, 1);
+      postScriptConverter.completeAt(0, SAMPLE_PDF);
+      await openPromise;
+      expect(pdfViewer.getDisplayedPdf()).toEqual(SAMPLE_PDF);
+
+      app.closeDocument();
+
+      expect(app.getState().selectedDocumentId).toBeUndefined();
+      expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
+      expect(await pdfStore.list()).toHaveLength(1);
+      expect(app.getState().documents.some((entry) => entry.savedAt !== undefined)).toBe(true);
+    });
+
+    it("keeps a just-converted PDF in the history even if it is closed while saving", async () => {
+      const { app, postScriptConverter, pdfStore, pdfViewer } = createTestViewerApp();
+      let releaseSave: (() => void) | undefined;
+      pdfStore.setSaveDelay(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseSave = resolve;
+          }),
+      );
+
+      const openPromise = app.openPostScript({ fileName: "sample.ps", data: POSTSCRIPT_BYTES });
+      await waitForConversions(postScriptConverter, 1);
+      postScriptConverter.completeAt(0, SAMPLE_PDF);
+      await openPromise;
+      await Promise.resolve();
+
+      app.closeDocument();
+      releaseSave!();
+      for (let i = 0; i < 10; i += 1) {
+        await Promise.resolve();
+      }
+
+      expect(await pdfStore.list()).toHaveLength(1);
+      expect(app.getState().selectedDocumentId).toBeUndefined();
+      expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
+      expect(app.getState().documents.map((entry) => entry.fileName)).toEqual(["sample.ps"]);
+    });
+
+    it("shows a history entry again after closing it", async () => {
+      const { app, pdfStore, pdfViewer } = createTestViewerApp();
+      await pdfStore.put({ id: "doc-a", fileName: "a.ps", savedAt: 1, pdf: SAMPLE_PDF });
+      await app.selectDocument("doc-a");
+
+      app.closeDocument();
+      expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
+      expect(app.getState().selectedDocumentId).toBeUndefined();
+
+      await app.selectDocument("doc-a");
+      expect(pdfViewer.getDisplayedPdf()).toEqual(SAMPLE_PDF);
+    });
+
+    it("aborts a conversion in progress and discards its session document", async () => {
+      const { app, postScriptConverter, pdfViewer } = createTestViewerApp();
+      void app.openPostScript({ fileName: "sample.ps", data: POSTSCRIPT_BYTES });
+      expect(selectedStatus(app)?.kind).toBe("converting");
+
+      app.closeDocument();
+      await waitForConversions(postScriptConverter, 1);
+      postScriptConverter.completeAt(0, SAMPLE_PDF);
+
+      expect(app.getState().selectedDocumentId).toBeUndefined();
+      expect(hasSessionDocument(app.getState())).toBe(false);
+      expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
+    });
+
+    it("does not let a pending restore show a PDF afterwards", async () => {
+      const { app, pdfStore, pdfViewer } = createTestViewerApp();
+      await pdfStore.put({ id: "doc-a", fileName: "a.ps", savedAt: 1, pdf: SAMPLE_PDF });
+
+      const restorePromise = app.restore();
+      app.closeDocument();
+      await restorePromise;
+
+      expect(app.getState().selectedDocumentId).toBeUndefined();
+      expect(pdfViewer.getDisplayedPdf()).toBeUndefined();
+    });
+  });
 });

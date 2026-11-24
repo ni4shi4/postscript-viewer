@@ -464,3 +464,25 @@ test("toggles the history sidebar into a rail and keeps the state after a reload
   );
   await expect(page.getByTestId("history-item")).toHaveCount(0);
 });
+
+test("returns to the drop card from convert-another and converts the next file", async ({
+  page,
+}) => {
+  await convertPostScriptViaFilePicker(page, minimalPsPath);
+  await expect(page.getByTestId("drop-card")).toBeHidden();
+
+  await page.getByTestId("history-convert-another").click();
+
+  await expect(page.getByTestId("drop-card")).toBeVisible();
+  await expect(page.getByTestId("pdf-frame")).toBeHidden();
+  await expect(page.getByTestId("history-convert-another")).toHaveCount(0);
+  await expect(page.getByTestId("history-item")).toHaveCount(1);
+  await expect(
+    page.getByTestId("drop-card").getByRole("button", { name: "ファイルを選択" }),
+  ).toBeFocused();
+
+  await convertPostScriptViaFilePicker(page, withTextPsPath);
+  await expect(page.getByTestId("drop-card")).toBeHidden();
+  await expect(page.getByTestId("history-item")).toHaveCount(2);
+  await expectSelectedFileInHistory(page, path.basename(withTextPsPath));
+});

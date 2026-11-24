@@ -78,12 +78,17 @@ export function PlusIcon() {
 export type HistorySidebarProps = {
   app: ViewerApp | undefined;
   state: ViewerState;
-  // PDF を表示している間だけ、サイドバーから別ファイルの変換を始められる。
+  // PDF を表示している間だけ、サイドバーから別ファイルの変換へ（ドロップゾーンへ）戻れる。
   canConvertAnother: boolean;
-  onPickFile: () => void;
+  onConvertAnother: () => void;
 };
 
-export function HistorySidebar({ app, state, canConvertAnother, onPickFile }: HistorySidebarProps) {
+export function HistorySidebar({
+  app,
+  state,
+  canConvertAnother,
+  onConvertAnother,
+}: HistorySidebarProps) {
   const [open, setOpen] = useHistorySidebarOpen();
   const entries = readyHistoryDocuments(state);
 
@@ -118,7 +123,7 @@ export function HistorySidebar({ app, state, canConvertAnother, onPickFile }: Hi
             type="button"
             class="rail-item rail-item--accent"
             data-testid="history-rail-convert"
-            onClick={onPickFile}
+            onClick={onConvertAnother}
           >
             <span class="rail-item__icon">
               <PlusIcon />
@@ -155,7 +160,7 @@ export function HistorySidebar({ app, state, canConvertAnother, onPickFile }: Hi
               type="button"
               class="history-sidebar__add-button"
               data-testid="history-convert-another"
-              onClick={onPickFile}
+              onClick={onConvertAnother}
             >
               <PlusIcon />
               別のファイルを変換

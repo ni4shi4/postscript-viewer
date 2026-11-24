@@ -5,6 +5,11 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ViewerApp } from "../../../core/ports/viewer-app";
+import { createSequentialDocumentIdFactory } from "../../../core/testing/fake-create-document-id";
+import { createFakePdfStore } from "../../../core/testing/fake-pdf-store";
+import { createFakePdfViewer } from "../../../core/testing/fake-pdf-viewer";
+import { createFakePostScriptConverter } from "../../../core/testing/fake-postscript-converter";
+import { createViewerApp } from "../../../core/usecases/create-viewer-app";
 import type { ViewerState } from "../../../core/state/viewer-state";
 import { App } from "./static-shell";
 
@@ -35,6 +40,7 @@ function createFakeViewerApp(initial: ViewerState = EMPTY): Fake {
     async openPostScript() {},
     async restore() {},
     cancel() {},
+    closeDocument() {},
     async selectDocument(id) {
       selectCalls.push(id);
     },
@@ -138,18 +144,58 @@ describe("compact viewport history drawer", () => {
     ]);
   });
 
-  it("does not render the sidebar or rail, and opens the file picker from the convert button", () => {
+  it("does not render the sidebar or rail", () => {
     const app = createFakeViewerApp(history(true));
     mountApp(app);
+
+    expect(byTestId("history-sidebar")).toBeNull();
+    expect(byTestId("history-toggle")).toBeNull();
+  });
+
+  it("returns to the drop card from the convert button without opening the picker, keeping the history", async () => {
+    const pdfStore = createFakePdfStore();
+    await pdfStore.put({
+      id: "a",
+      fileName: "a.ps",
+      savedAt: 1,
+      pdf: new Uint8Array([37, 80, 68, 70]),
+    });
+    const app = createViewerApp({
+      postScriptConverter: createFakePostScriptConverter(),
+      pdfViewer: createFakePdfViewer(),
+      pdfStore,
+      createDocumentId: createSequentialDocumentIdFactory(),
+      now: () => 2,
+    });
+    document.body.replaceChildren();
+    const mount = document.createElement("div");
+    mount.id = "mount-app";
+    document.body.append(mount);
+    await act(async () => {
+      render(h(App, { app }), mount);
+      await app.restore();
+    });
     let opens = 0;
     byTestId("file-input")?.addEventListener("click", () => {
       opens += 1;
     });
+    expect(byTestId("drop-card")?.hidden).toBe(true);
 
-    expect(byTestId("history-sidebar")).toBeNull();
-    expect(byTestId("history-toggle")).toBeNull();
+    byTestId("compact-convert")?.focus();
     click("compact-convert");
-    expect(opens).toBe(1);
+
+    expect(byTestId("drop-card")?.hidden).toBe(false);
+    expect(byTestId("compact-convert")).toBeNull();
+    expect(byTestId("history-drawer-button")).not.toBeNull();
+    expect(byTestId("history-drawer")).toBeNull();
+    const pickButton = Array.from(byTestId("drop-card")?.querySelectorAll("button") ?? []).find(
+      (button) => button.textContent === "ファイルを選択",
+    );
+    expect(document.activeElement).toBe(pickButton);
+    expect(opens).toBe(0);
+
+    click("history-drawer-button");
+    expect(document.querySelectorAll('[data-testid="history-item"]')).toHaveLength(1);
   });
 
   it("opens a modal dialog with the history list and focus inside, without the convert-another button", () => {

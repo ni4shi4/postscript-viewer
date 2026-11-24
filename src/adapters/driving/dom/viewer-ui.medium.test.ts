@@ -61,6 +61,7 @@ function createFakeViewerApp(
     },
     async restore() {},
     cancel() {},
+    closeDocument() {},
     async selectDocument() {},
     async deleteDocument() {},
     async clearHistory() {},

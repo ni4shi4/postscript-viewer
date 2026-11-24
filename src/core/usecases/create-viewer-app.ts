@@ -7,7 +7,7 @@ import type { PdfViewer } from "../ports/pdf-viewer";
 import type { PostScriptConverter } from "../ports/postscript-converter";
 import type { ViewerApp } from "../ports/viewer-app";
 import { createViewerStore } from "../state/viewer-store";
-import type { ViewerError } from "../state/viewer-state";
+import { selectedViewerDocument, type ViewerError } from "../state/viewer-state";
 
 export type CreateViewerAppDeps = {
   postScriptConverter: PostScriptConverter;
@@ -111,6 +111,16 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
     }
   };
 
+  const discardSessionAndDeselect = (): void => {
+    abortActiveConversion();
+    activeDocumentId = undefined;
+    activeRestoreId = undefined;
+    activeSelectId = undefined;
+    store.clearSessionDocuments();
+    store.selectDocumentId(undefined);
+    deps.pdfViewer.clear();
+  };
+
   const isDocumentActive = (documentId: string): boolean => activeDocumentId === documentId;
 
   return {
@@ -198,11 +208,19 @@ export function createViewerApp(deps: CreateViewerAppDeps): ViewerApp {
     },
 
     cancel() {
-      abortActiveConversion();
-      activeDocumentId = undefined;
+      discardSessionAndDeselect();
+    },
+
+    // 表示中の文書を閉じて「何も表示していない」状態に戻る。履歴は残す。
+    // 変換が済んだ文書は、保存中であれば保存を続けて履歴に残す（cancel は保存も取り消す）。
+    closeDocument() {
+      const selected = selectedViewerDocument(store.getState());
+      if (selected?.status.kind !== "ready") {
+        discardSessionAndDeselect();
+        return;
+      }
       activeRestoreId = undefined;
       activeSelectId = undefined;
-      store.clearSessionDocuments();
       store.selectDocumentId(undefined);
       deps.pdfViewer.clear();
     },
