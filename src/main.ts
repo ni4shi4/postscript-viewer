@@ -5,12 +5,16 @@ import { createIframePdfViewer } from "./adapters/driven/pdf-viewer-iframe/ifram
 import { createPdfJsPdfViewer } from "./adapters/driven/pdf-viewer-pdfjs/pdfjs-pdf-viewer";
 import { createRequestId } from "./adapters/driven/postscript-converter/create-request-id";
 import { createWorkerPostScriptConverter } from "./adapters/driven/postscript-converter/worker-postscript-converter";
+import { localeFromDocumentLanguage } from "./adapters/driving/dom/i18n/locale-from-document-language";
 import { mountViewerApp } from "./adapters/driving/dom/static-shell";
 import { queryViewerDom } from "./adapters/driving/dom/viewer-ui";
 import type { PdfViewer } from "./core/ports/pdf-viewer";
 import { createViewerApp } from "./core/usecases/create-viewer-app";
 
-const connectViewerApp = mountViewerApp({ commitSha: BUILD_COMMIT_SHA, locale: "ja" });
+const connectViewerApp = mountViewerApp({
+  commitSha: BUILD_COMMIT_SHA,
+  locale: localeFromDocumentLanguage(document.documentElement.lang),
+});
 
 function navigatorHasBuiltInPdfViewer(): boolean {
   return navigator.pdfViewerEnabled === true;

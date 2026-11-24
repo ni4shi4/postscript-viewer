@@ -45,4 +45,5 @@ export type Messages = {
   downloadPdfLabel: (fileName: string) => string;
 
   sourceCodeLink: string;
+  alternateLanguage: { label: string; href: string; lang: Locale };
 };

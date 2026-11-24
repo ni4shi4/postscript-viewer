@@ -1,8 +1,11 @@
 import { execSync } from "node:child_process";
+import { resolve } from "node:path";
 
 import preact from "@preact/preset-vite";
 import { defineConfig } from "vite";
 import { viteStaticCopy } from "vite-plugin-static-copy";
+
+import { hreflangAlternatesPlugin } from "./vite/hreflang-alternates-plugin.js";
 
 function resolveBuildCommitSha(): string | undefined {
   const fromEnv = process.env.BUILD_COMMIT_SHA?.trim();
@@ -25,6 +28,7 @@ export default defineConfig({
   },
   plugins: [
     preact(),
+    hreflangAlternatesPlugin(process.env.SITE_ORIGIN),
     viteStaticCopy({
       targets: [
         {
@@ -45,6 +49,14 @@ export default defineConfig({
       ],
     }),
   ],
+  build: {
+    rolldownOptions: {
+      input: {
+        main: resolve(import.meta.dirname, "index.html"),
+        en: resolve(import.meta.dirname, "en/index.html"),
+      },
+    },
+  },
   worker: {
     format: "es",
   },

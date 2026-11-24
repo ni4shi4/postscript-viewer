@@ -46,4 +46,5 @@ export const ja = {
   downloadPdfLabel: (fileName) => `${fileName} をダウンロード`,
 
   sourceCodeLink: "ソースコード",
+  alternateLanguage: { label: "English", href: "/en/", lang: "en" },
 } satisfies Messages;

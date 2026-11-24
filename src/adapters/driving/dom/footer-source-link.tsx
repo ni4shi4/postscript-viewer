@@ -16,6 +16,16 @@ export function AppFooter({ commitSha }: AppFooterProps) {
         ·
       </span>
       <span>AGPL-3.0</span>
+      <span class="app-footer__sep" aria-hidden="true">
+        ·
+      </span>
+      <a
+        href={messages.alternateLanguage.href}
+        hrefLang={messages.alternateLanguage.lang}
+        lang={messages.alternateLanguage.lang}
+      >
+        {messages.alternateLanguage.label}
+      </a>
     </>
   );
 }
