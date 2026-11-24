@@ -66,6 +66,69 @@ test("displays a PDF blob when a .ps file is selected", async ({ page }) => {
   await convertPostScriptViaFilePicker(page, minimalPsPath);
 });
 
+test("shows the document bar with the file name only after a PostScript file is converted", async ({
+  page,
+}) => {
+  const documentBar = page.getByTestId("document-bar");
+  await expect(documentBar).toBeHidden();
+
+  await convertPostScriptViaFilePicker(page, minimalPsPath);
+
+  await expect(documentBar).toBeVisible();
+  await expect(page.getByTestId("document-bar-file-name")).toHaveText("minimal.ps");
+  await expect(page.getByTestId("download-pdf")).toBeVisible();
+});
+
+async function expectDownloadedPdf(page: Page, expectedFileName: string): Promise<void> {
+  await page.waitForLoadState("networkidle");
+  const requestsDuringDownload: string[] = [];
+  const onRequest = (request: { url: () => string }): void => {
+    requestsDuringDownload.push(request.url());
+  };
+  page.on("request", onRequest);
+
+  try {
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("download-pdf").click();
+    const download = await downloadPromise;
+
+    expect(download.suggestedFilename()).toBe(expectedFileName);
+    const savedPath = await download.path();
+    expect(savedPath).not.toBeNull();
+    const pdfHeader = readFileSync(savedPath!).subarray(0, 5).toString("ascii");
+    expect(pdfHeader).toBe("%PDF-");
+    expect(requestsDuringDownload).toEqual([]);
+  } finally {
+    page.off("request", onRequest);
+  }
+}
+
+test("downloads the converted PDF from the document bar without additional network requests", async ({
+  page,
+}) => {
+  await convertPostScriptViaFilePicker(page, minimalPsPath);
+  await expect(page.getByTestId("download-pdf")).toHaveAccessibleName("minimal.pdf をダウンロード");
+
+  await expectDownloadedPdf(page, "minimal.pdf");
+});
+
+test("downloads a past document selected from the history", async ({ page }) => {
+  await convertPostScriptViaFilePicker(page, minimalPsPath);
+  await convertPostScriptViaFilePicker(page, withTextPsPath);
+  await expect(page.getByTestId("document-bar-file-name")).toHaveText("with-text.ps");
+
+  const minimalBaseName = path.basename(minimalPsPath);
+  const minimalRow = page.getByTestId("history-item").filter({ hasText: minimalBaseName });
+  await activateHistoryEntryAndExpectPdfFrame(
+    page,
+    historyItemSelectButton(minimalRow),
+    minimalBaseName,
+  );
+  await expect(page.getByTestId("document-bar-file-name")).toHaveText(minimalBaseName);
+
+  await expectDownloadedPdf(page, "minimal.pdf");
+});
+
 const layoutHeightTolerancePx = 3;
 
 async function readViewerSurfaceLayout(page: Page) {
@@ -84,6 +147,7 @@ async function readViewerSurfaceLayout(page: Page) {
       footer: ".app-footer",
       historySidebar: '[data-testid="history-sidebar"]',
       viewerSurface: ".viewer-surface",
+      documentBar: '[data-testid="document-bar"]',
       pdfFrame: '[data-testid="pdf-frame"]',
     } as const;
 
@@ -95,6 +159,7 @@ async function readViewerSurfaceLayout(page: Page) {
       footer: null,
       historySidebar: null,
       viewerSurface: null,
+      documentBar: null,
       pdfFrame: null,
     };
 
@@ -160,21 +225,28 @@ function expectHistorySidebarMatchesViewerSurfaceHeight(
   expect(sidebarHeight).toBeLessThan(surfaceHeight + layoutHeightTolerancePx);
 }
 
-function expectPdfFrameFillsViewerSurface(
+function expectPdfFrameFillsViewerSurfaceBelowDocumentBar(
   layout: Awaited<ReturnType<typeof readViewerSurfaceLayout>>,
 ): void {
   expect(layout.viewerSurface).not.toBeNull();
+  expect(layout.documentBar).not.toBeNull();
   expect(layout.pdfFrame).not.toBeNull();
 
-  const surfaceHeight = layout.viewerSurface!.height;
   const surfaceTop = layout.viewerSurface!.top;
   const surfaceBottom = layout.viewerSurface!.bottom;
+  const barTop = layout.documentBar!.top;
+  const barBottom = layout.documentBar!.bottom;
 
+  expect(layout.documentBar!.height).toBeGreaterThan(0);
+  expect(barTop).toBeGreaterThan(surfaceTop - layoutHeightTolerancePx);
+  expect(barTop).toBeLessThan(surfaceTop + layoutHeightTolerancePx);
+
+  const expectedFrameHeight = surfaceBottom - barBottom;
   expect(layout.pdfFrame!.height).toBeGreaterThan(150);
-  expect(layout.pdfFrame!.height).toBeGreaterThan(surfaceHeight - layoutHeightTolerancePx);
-  expect(layout.pdfFrame!.height).toBeLessThan(surfaceHeight + layoutHeightTolerancePx);
-  expect(layout.pdfFrame!.top).toBeGreaterThan(surfaceTop - layoutHeightTolerancePx);
-  expect(layout.pdfFrame!.top).toBeLessThan(surfaceTop + layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.height).toBeGreaterThan(expectedFrameHeight - layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.height).toBeLessThan(expectedFrameHeight + layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.top).toBeGreaterThan(barBottom - layoutHeightTolerancePx);
+  expect(layout.pdfFrame!.top).toBeLessThan(barBottom + layoutHeightTolerancePx);
   expect(layout.pdfFrame!.bottom).toBeGreaterThan(surfaceBottom - layoutHeightTolerancePx);
   expect(layout.pdfFrame!.bottom).toBeLessThan(surfaceBottom + layoutHeightTolerancePx);
 }
@@ -193,7 +265,7 @@ test("fits the header, viewer surface and footer into the viewport for the PDF p
   expectViewerSurfaceFitsViewportWithToolbarAndFooter(convertedLayout);
   expectViewerSurfaceBetweenToolbarAndFooterWithinViewport(convertedLayout);
   expectHistorySidebarMatchesViewerSurfaceHeight(convertedLayout);
-  expectPdfFrameFillsViewerSurface(convertedLayout);
+  expectPdfFrameFillsViewerSurfaceBelowDocumentBar(convertedLayout);
 
   await page.setViewportSize({ width: 400, height: 720 });
   const narrowLayout = await readViewerSurfaceLayout(page);
