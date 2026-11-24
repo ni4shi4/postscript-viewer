@@ -2,9 +2,14 @@
 
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { App } from "./static-shell";
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 function mountApp(): void {
   document.body.replaceChildren();
@@ -33,6 +38,17 @@ describe("static shell toolbar layout", () => {
     for (const id of ["file-limits-notice", "privacy-notice", "trust-notice"] as const) {
       expect(document.getElementById(id)).not.toBeNull();
     }
+  });
+
+  it("shows the PS icon in the header as a decorative image of /favicon.svg", () => {
+    mountApp();
+
+    const mark = document.querySelector<HTMLImageElement>('[data-testid="app-mark"]');
+    expect(mark).not.toBeNull();
+    expect(mark!.tagName).toBe("IMG");
+    expect(mark!.getAttribute("src")).toBe("/favicon.svg");
+    expect(mark!.getAttribute("alt")).toBe("");
+    expect(document.querySelector("header.toolbar")!.contains(mark)).toBe(true);
   });
 
   it("shows the header on one row with the title as the only h1 and no steps list", () => {
@@ -89,5 +105,17 @@ describe("static shell toolbar layout", () => {
       expect(element).not.toBeNull();
       expect(card!.contains(element)).toBe(false);
     }
+  });
+});
+
+describe("index.html favicon", () => {
+  it("links /favicon.svg as an SVG icon in the document head", () => {
+    const html = readFileSync(path.join(REPO_ROOT, "index.html"), "utf8");
+    const doc = new DOMParser().parseFromString(html, "text/html");
+
+    const icon = doc.head.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    expect(icon).not.toBeNull();
+    expect(icon!.getAttribute("href")).toBe("/favicon.svg");
+    expect(icon!.getAttribute("type")).toBe("image/svg+xml");
   });
 });

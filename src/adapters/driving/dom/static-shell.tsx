@@ -27,9 +27,14 @@ const DESCRIPTION = "PostScript ファイルをブラウザ内で PDF に変換�
 export function ToolbarIntro({ compact = false }: { compact?: boolean }) {
   return (
     <div class="toolbar-intro">
-      <span class="logo-mark" aria-hidden="true">
-        PS
-      </span>
+      <img
+        src="/favicon.svg"
+        alt=""
+        width={30}
+        height={30}
+        class="app-mark"
+        data-testid="app-mark"
+      />
       <h1>PostScript ビューア</h1>
       {compact ? null : (
         <>

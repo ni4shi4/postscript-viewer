@@ -69,18 +69,10 @@ body {
   white-space: nowrap;
 }
 
-.logo-mark {
+.app-mark {
   flex-shrink: 0;
   width: 1.9rem;
   height: 1.9rem;
-  border-radius: 0.5rem;
-  background: var(--accent);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
 }
 
 .toolbar-intro__divider {
