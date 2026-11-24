@@ -12,6 +12,7 @@ export type Messages = {
   conversionTimeout: (limit: string) => string;
   inputTooLarge: (limit: string) => string;
   decompressedTooLarge: (limit: string) => string;
+  conversionFailed: (detail: string) => string;
 
   limitsNoticeLabel: string;
   limitLabelInputSize: string;

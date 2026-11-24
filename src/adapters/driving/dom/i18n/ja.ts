@@ -13,6 +13,7 @@ export const ja = {
   conversionTimeout: (limit) => `変換が制限時間（${limit}）を超えました`,
   inputTooLarge: (limit) => `ファイルサイズが上限（${limit}）を超えています`,
   decompressedTooLarge: (limit) => `展開後のサイズが上限（${limit}）を超えています`,
+  conversionFailed: (detail) => `PostScript を PDF に変換できませんでした（${detail}）`,
 
   limitsNoticeLabel: "受け付ける上限",
   limitLabelInputSize: "ファイルサイズ",

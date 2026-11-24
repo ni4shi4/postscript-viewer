@@ -315,6 +315,7 @@ describe("viewer app UI", () => {
 
     const status = queryStatusPanel();
     expect(status.hidden).toBe(false);
+    expect(status.textContent).toContain("PostScript を PDF に変換できませんでした");
     expect(status.textContent).toContain(detail);
   });
 
@@ -370,7 +371,9 @@ describe("viewer app UI", () => {
     const card = queryDropCard();
     expect(card.hidden).toBe(false);
     expect(card.contains(queryStatusPanel())).toBe(true);
-    expect(queryStatusPanel().textContent).toBe("failed");
+    expect(queryStatusPanel().textContent).toBe(
+      "PostScript を PDF に変換できませんでした（failed）",
+    );
     expect(queryFileNameDisplay().textContent).toBe("bad.ps");
   });
 

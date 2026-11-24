@@ -47,7 +47,7 @@ export function userMessageFromViewerError(error: ViewerError, messages: Message
     case "timeout":
       return messages.conversionTimeout(formattedConversionTimeLimit(messages));
     case "conversion-failed":
-      return error.detail;
+      return messages.conversionFailed(error.detail);
   }
 }
 
