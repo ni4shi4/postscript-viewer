@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   E2E_PREVIEW_PORT,
+  E2E_SITE_ORIGIN,
   E2E_PREVIEW_SERVERS_READY,
   E2E_SECURITY_PREVIEW_PORT,
   previewOriginForPort,
@@ -83,7 +84,11 @@ function terminatePreviewServers() {
   }
 }
 
-execSync("npm run build", { cwd: repoRoot, stdio: "inherit" });
+execSync("npm run build", {
+  cwd: repoRoot,
+  stdio: "inherit",
+  env: { ...process.env, SITE_ORIGIN: E2E_SITE_ORIGIN },
+});
 
 previewProcesses.push(spawnPreviewServer("preview", E2E_PREVIEW_PORT));
 previewProcesses.push(spawnPreviewServer("preview:e2e", E2E_SECURITY_PREVIEW_PORT));

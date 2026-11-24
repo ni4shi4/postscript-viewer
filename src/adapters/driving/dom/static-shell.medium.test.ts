@@ -7,17 +7,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { messagesFor, MessagesContext } from "./i18n/messages-context";
+import type { Locale } from "./i18n/messages";
 import { App } from "./static-shell";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
 
-function mountApp(): void {
+function mountApp(locale: Locale = "ja"): void {
   document.body.replaceChildren();
   const mount = document.createElement("div");
   mount.id = "mount-app";
   document.body.append(mount);
   act(() => {
-    render(h(App, null), mount);
+    render(h(MessagesContext.Provider, { value: messagesFor(locale) }, h(App, null)), mount);
   });
 }
 
@@ -106,6 +108,48 @@ describe("static shell toolbar layout", () => {
       expect(card!.contains(element)).toBe(false);
     }
   });
+});
+
+describe("static shell localization", () => {
+  beforeEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it("shows English UI texts when the locale is en", () => {
+    mountApp("en");
+
+    expect(document.querySelector("h1")?.textContent).toBe("PostScript Viewer");
+    const card = document.querySelector<HTMLElement>('[data-testid="drop-card"]')!;
+    expect(card.textContent).toContain("Drop a PostScript file here");
+    expect(
+      Array.from(card.querySelectorAll("button")).some(
+        (button) => button.textContent === "Choose file",
+      ),
+    ).toBe(true);
+
+    const limits = document.querySelector<HTMLElement>('[data-testid="file-limits-notice"]')!;
+    expect(limits.textContent).toContain("File size");
+    expect(limits.textContent).toContain("Decompressed size");
+    expect(limits.textContent).toContain("Conversion time limit");
+    expect(document.body.textContent).not.toContain("ファイルを選択");
+  });
+
+  it.each([
+    { locale: "ja", linkName: "English", href: "/en/", hrefLang: "en" },
+    { locale: "en", linkName: "日本語", href: "/", hrefLang: "ja" },
+  ] as const)(
+    "links the footer to the other language when the locale is $locale",
+    ({ locale, linkName, href, hrefLang }) => {
+      mountApp(locale);
+
+      const link = Array.from(document.querySelectorAll("a")).find(
+        (anchor) => anchor.textContent === linkName,
+      );
+      expect(link).toBeDefined();
+      expect(link!.getAttribute("href")).toBe(href);
+      expect(link!.getAttribute("hreflang")).toBe(hrefLang);
+    },
+  );
 });
 
 describe("index.html favicon", () => {
