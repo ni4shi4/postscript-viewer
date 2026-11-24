@@ -10,7 +10,7 @@ import { queryViewerDom } from "./adapters/driving/dom/viewer-ui";
 import type { PdfViewer } from "./core/ports/pdf-viewer";
 import { createViewerApp } from "./core/usecases/create-viewer-app";
 
-const connectViewerApp = mountViewerApp({ commitSha: BUILD_COMMIT_SHA });
+const connectViewerApp = mountViewerApp({ commitSha: BUILD_COMMIT_SHA, locale: "ja" });
 
 function navigatorHasBuiltInPdfViewer(): boolean {
   return navigator.pdfViewerEnabled === true;

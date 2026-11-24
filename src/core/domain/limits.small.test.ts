@@ -6,7 +6,7 @@ import {
   TooLargeError,
   assertWithinByteLimit,
   formattedByteLimit,
-  formattedConversionTimeLimit,
+  conversionTimeLimitInSeconds,
 } from "./limits";
 
 describe("assertWithinByteLimit", () => {
@@ -32,8 +32,8 @@ describe("formattedByteLimit", () => {
   });
 });
 
-describe("formattedConversionTimeLimit", () => {
+describe("conversionTimeLimitInSeconds", () => {
   it("reflects the configured conversion duration", () => {
-    expect(formattedConversionTimeLimit()).toBe("60 秒");
+    expect(conversionTimeLimitInSeconds()).toBe(60);
   });
 });

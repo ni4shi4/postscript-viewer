@@ -5,6 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import { selectedViewerDocument, type ViewerState } from "../../../core/state/viewer-state";
 import { DocumentBar } from "./document-bar";
+import type { Locale } from "./i18n/messages";
+import { MessagesContext, messagesFor, useMessages } from "./i18n/messages-context";
 import { FileLimitsNotice } from "./file-limits-notice";
 import { AppFooter, type AppFooterProps } from "./footer-source-link";
 import { useCompactViewport } from "./compact-viewport";
@@ -23,9 +25,8 @@ import {
   ViewerStatus,
 } from "./viewer-ui";
 
-const DESCRIPTION = "PostScript ファイルをブラウザ内で PDF に変換して表示します";
-
 export function ToolbarIntro({ compact = false }: { compact?: boolean }) {
+  const messages = useMessages();
   return (
     <div class="toolbar-intro">
       <img
@@ -36,11 +37,11 @@ export function ToolbarIntro({ compact = false }: { compact?: boolean }) {
         class="app-mark"
         data-testid="app-mark"
       />
-      <h1>PostScript ビューア</h1>
+      <h1>{messages.appTitle}</h1>
       {compact ? null : (
         <>
           <span class="toolbar-intro__divider" aria-hidden="true" />
-          <p class="toolbar-intro__description">{DESCRIPTION}</p>
+          <p class="toolbar-intro__description">{messages.appDescription}</p>
         </>
       )}
     </div>
@@ -57,6 +58,7 @@ type CompactToolbarActionsProps = {
 };
 
 function CompactToolbarActions(props: CompactToolbarActionsProps) {
+  const messages = useMessages();
   return (
     <div class="toolbar-actions">
       {props.showHistory ? (
@@ -71,7 +73,7 @@ function CompactToolbarActions(props: CompactToolbarActionsProps) {
           onClick={props.onToggleHistory}
         >
           <ClockIcon />
-          履歴
+          {messages.historyButton}
         </button>
       ) : null}
       {props.showConvert ? (
@@ -82,7 +84,7 @@ function CompactToolbarActions(props: CompactToolbarActionsProps) {
           onClick={props.onConvertAnother}
         >
           <PlusIcon />
-          変換
+          {messages.convertButton}
         </button>
       ) : null}
     </div>
@@ -90,6 +92,7 @@ function CompactToolbarActions(props: CompactToolbarActionsProps) {
 }
 
 export function PrivacyNotice() {
+  const messages = useMessages();
   return (
     <p id="privacy-notice" class="notice notice--ok">
       <svg
@@ -103,12 +106,13 @@ export function PrivacyNotice() {
         <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" />
         <path d="M9 12l2 2 4-4" />
       </svg>
-      ファイルはサーバーへ送信されず、お使いの端末内で処理されます
+      {messages.privacyNotice}
     </p>
   );
 }
 
 export function TrustNotice() {
+  const messages = useMessages();
   return (
     <p class="notice notice--warn" id="trust-notice" data-testid="trust-notice">
       <svg
@@ -122,15 +126,16 @@ export function TrustNotice() {
         <path d="M12 3l10 18H2z" />
         <path d="M12 10v4M12 17v.5" />
       </svg>
-      信頼できる PostScript ファイルだけを開いてください
+      {messages.trustNotice}
     </p>
   );
 }
 
 const ViewerMain = memo(function ViewerMain() {
+  const messages = useMessages();
   return (
     <>
-      <iframe title="変換された PDF" data-testid="pdf-frame" hidden />
+      <iframe title={messages.pdfFrameTitle} data-testid="pdf-frame" hidden />
       <div class="pdf-canvas-container" data-testid="pdf-canvas-container" hidden />
     </>
   );
@@ -145,9 +150,10 @@ function isDocumentActive(state: ViewerState): boolean {
 }
 
 function DropOverlay({ state }: { state: ViewerState }) {
+  const messages = useMessages();
   return (
     <div class="drop-overlay" data-testid="drop-overlay" hidden={!isPdfShown(state)}>
-      <p class="drop-overlay__label">ここにドロップして変換</p>
+      <p class="drop-overlay__label">{messages.dropOverlayLabel}</p>
     </div>
   );
 }
@@ -159,6 +165,7 @@ type DropCardProps = {
 };
 
 function DropCard({ state, onPickFile, pickButtonRef }: DropCardProps) {
+  const messages = useMessages();
   return (
     <div class="drop-stage" data-testid="drop-card" hidden={isPdfShown(state)}>
       <section class="drop-card" aria-labelledby="drop-card-heading">
@@ -180,12 +187,12 @@ function DropCard({ state, onPickFile, pickButtonRef }: DropCardProps) {
           class="drop-card__heading drop-card__pointer-only"
           hidden={isDocumentActive(state)}
         >
-          PostScript ファイルをここにドロップ
+          {messages.dropCardHeading}
         </h2>
-        <p class="drop-card__formats">.ps / .ps.gz に対応しています</p>
-        <p class="drop-card__or drop-card__pointer-only">または</p>
+        <p class="drop-card__formats">{messages.dropCardFormats}</p>
+        <p class="drop-card__or drop-card__pointer-only">{messages.dropCardOr}</p>
         <button type="button" class="btn-primary" ref={pickButtonRef} onClick={onPickFile}>
-          ファイルを選択
+          {messages.pickFileButton}
         </button>
         <div class="drop-card__document">
           <ViewerFileName state={state} />
@@ -206,6 +213,7 @@ export type AppProps = AppFooterProps & {
 };
 
 export function App({ commitSha, app }: AppProps) {
+  const messages = useMessages();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const viewerState = useViewerDomUi(app, fileInputRef);
   const dropTarget = useFileDropTarget(app);
@@ -279,7 +287,9 @@ export function App({ commitSha, app }: AppProps) {
             />
           ) : null}
         </div>
-        {compact && !pdfShown ? <p class="toolbar__description">{DESCRIPTION}</p> : null}
+        {compact && !pdfShown ? (
+          <p class="toolbar__description">{messages.appDescription}</p>
+        ) : null}
       </header>
       <main class="viewer">
         <input
@@ -287,7 +297,7 @@ export function App({ commitSha, app }: AppProps) {
           accept=".ps,.gz"
           class="file-picker__input"
           data-testid="file-input"
-          aria-label="PostScript ファイルを選択"
+          aria-label={messages.fileInputLabel}
           aria-describedby="file-limits-notice privacy-notice trust-notice"
           ref={fileInputRef}
         />
@@ -329,14 +339,21 @@ function requireMountElement(id: string): HTMLElement {
   return element;
 }
 
-export type MountViewerAppOptions = AppFooterProps;
+export type MountViewerAppOptions = AppFooterProps & {
+  locale: Locale;
+};
 
 export function mountViewerApp(options: MountViewerAppOptions): (app: ViewerApp) => void {
   const mount = requireMountElement("mount-app");
   let viewerApp: ViewerApp | undefined;
 
   const renderRoot = (): void => {
-    render(<App commitSha={options.commitSha} app={viewerApp} />, mount);
+    render(
+      <MessagesContext.Provider value={messagesFor(options.locale)}>
+        <App commitSha={options.commitSha} app={viewerApp} />
+      </MessagesContext.Provider>,
+      mount,
+    );
   };
 
   renderRoot();

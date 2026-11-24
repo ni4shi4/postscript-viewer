@@ -1,7 +1,9 @@
+import { useMessages } from "./i18n/messages-context";
 import { acceptedFileLimitItems } from "./limit-display-text";
 
 export function FileLimitsNotice() {
-  const items = acceptedFileLimitItems();
+  const messages = useMessages();
+  const items = acceptedFileLimitItems(messages);
 
   return (
     <dl
@@ -9,7 +11,7 @@ export function FileLimitsNotice() {
       class="file-limits-notice"
       data-file-limits
       data-testid="file-limits-notice"
-      aria-label="受け付ける上限"
+      aria-label={messages.limitsNoticeLabel}
     >
       {items.map((item) => (
         <div key={item.label} class="chip">

@@ -11,6 +11,7 @@ import { createFakePdfViewer } from "../../../core/testing/fake-pdf-viewer";
 import { createFakePostScriptConverter } from "../../../core/testing/fake-postscript-converter";
 import { createViewerApp } from "../../../core/usecases/create-viewer-app";
 import type { ViewerDocument, ViewerState } from "../../../core/state/viewer-state";
+import { ja } from "./i18n/ja";
 import { App } from "./static-shell";
 import {
   formatHistorySavedAt,
@@ -165,7 +166,7 @@ function clickToggle(): void {
 
 describe("history sidebar helpers", () => {
   it("formats savedAt for display", () => {
-    const label = formatHistorySavedAt(Date.UTC(2024, 5, 15, 9, 30));
+    const label = formatHistorySavedAt(Date.UTC(2024, 5, 15, 9, 30), ja);
     expect(label).not.toBe("");
   });
 
