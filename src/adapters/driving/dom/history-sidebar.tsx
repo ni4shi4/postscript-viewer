@@ -3,6 +3,8 @@ import { useEffect, useRef } from "preact/hooks";
 
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import type { ViewerDocument, ViewerState } from "../../../core/state/viewer-state";
+import type { Messages } from "./i18n/messages";
+import { useMessages } from "./i18n/messages-context";
 import { useHistorySidebarOpen } from "./history-sidebar-preference";
 
 export function isReadyHistoryDocument(document: ViewerDocument): boolean {
@@ -13,8 +15,8 @@ export function readyHistoryDocuments(state: ViewerState): ViewerDocument[] {
   return state.documents.filter(isReadyHistoryDocument);
 }
 
-export function formatHistorySavedAt(savedAt: number): string {
-  return new Intl.DateTimeFormat("ja-JP", {
+export function formatHistorySavedAt(savedAt: number, messages: Messages): string {
+  return new Intl.DateTimeFormat(messages.intlLocale, {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(savedAt));
@@ -89,6 +91,7 @@ export function HistorySidebar({
   canConvertAnother,
   onConvertAnother,
 }: HistorySidebarProps) {
+  const messages = useMessages();
   const [open, setOpen] = useHistorySidebarOpen();
   const entries = readyHistoryDocuments(state);
 
@@ -101,13 +104,13 @@ export function HistorySidebar({
       <aside
         class="history-sidebar history-sidebar--closed"
         data-testid="history-sidebar"
-        aria-label="変換履歴"
+        aria-label={messages.historyHeading}
       >
         <button
           type="button"
           class="rail-item"
           data-testid="history-toggle"
-          aria-label="履歴を開く"
+          aria-label={messages.historyOpenLabel}
           aria-expanded="false"
           onClick={() => {
             setOpen(true);
@@ -116,7 +119,7 @@ export function HistorySidebar({
           <span class="rail-item__icon">
             <PanelIcon />
           </span>
-          履歴
+          {messages.historyButton}
         </button>
         {canConvertAnother ? (
           <button
@@ -128,7 +131,7 @@ export function HistorySidebar({
             <span class="rail-item__icon">
               <PlusIcon />
             </span>
-            変換する
+            {messages.convertAnotherRail}
           </button>
         ) : null}
       </aside>
@@ -138,12 +141,12 @@ export function HistorySidebar({
   return (
     <aside class="history-sidebar" data-testid="history-sidebar">
       <div class="history-sidebar__top">
-        <h2 class="history-sidebar__heading">変換履歴</h2>
+        <h2 class="history-sidebar__heading">{messages.historyHeading}</h2>
         <button
           type="button"
           class="history-sidebar__toggle"
           data-testid="history-toggle"
-          aria-label="履歴を閉じる"
+          aria-label={messages.historyCloseLabel}
           aria-expanded="true"
           onClick={() => {
             setOpen(false);
@@ -163,7 +166,7 @@ export function HistorySidebar({
               onClick={onConvertAnother}
             >
               <PlusIcon />
-              別のファイルを変換
+              {messages.convertAnotherFile}
             </button>
           </div>
         ) : null}
@@ -180,6 +183,7 @@ type HistoryListProps = {
 };
 
 function HistoryList({ app, state, entries, onSelect }: HistoryListProps) {
+  const messages = useMessages();
   return (
     <>
       <ul class="history-sidebar__list">
@@ -201,7 +205,7 @@ function HistoryList({ app, state, entries, onSelect }: HistoryListProps) {
           invokeViewerApp(app, (viewerApp) => viewerApp.clearHistory());
         }}
       >
-        すべて削除
+        {messages.clearHistory}
       </button>
     </>
   );
@@ -218,6 +222,7 @@ export type HistoryBottomSheetProps = {
 
 // スマホ用。画面下からせり上がるモーダルのボトムシート。開閉は呼び出し側の一時的な状態で、保存しない。
 export function HistoryBottomSheet({ app, state, open, onClose }: HistoryBottomSheetProps) {
+  const messages = useMessages();
   const sheetRef = useRef<HTMLDivElement>(null);
   const entries = readyHistoryDocuments(state);
   const visible = open && entries.length > 0;
@@ -285,13 +290,13 @@ export function HistoryBottomSheet({ app, state, open, onClose }: HistoryBottomS
         <div class="history-sheet__grabber" aria-hidden="true" />
         <div class="history-sheet__top">
           <h2 id="history-sheet-heading" class="history-sheet__heading">
-            変換履歴
+            {messages.historyHeading}
           </h2>
           <button
             type="button"
             class="history-sheet__close"
             data-testid="history-sheet-close"
-            aria-label="閉じる"
+            aria-label={messages.closeLabel}
             onClick={onClose}
           >
             <Svg>
@@ -315,11 +320,12 @@ type HistorySidebarItemProps = {
 };
 
 function HistorySidebarItem({ app, entry, selected, onSelect }: HistorySidebarItemProps) {
+  const messages = useMessages();
   const savedAt = entry.savedAt;
   if (savedAt === undefined) {
     return null;
   }
-  const savedAtLabel = formatHistorySavedAt(savedAt);
+  const savedAtLabel = formatHistorySavedAt(savedAt, messages);
 
   return (
     <li
@@ -356,7 +362,7 @@ function HistorySidebarItem({ app, entry, selected, onSelect }: HistorySidebarIt
         type="button"
         class="history-item__delete"
         data-testid="history-delete"
-        aria-label={`${entry.fileName} を履歴から削除`}
+        aria-label={messages.removeFromHistory(entry.fileName)}
         onClick={() => {
           invokeViewerApp(app, (viewerApp) => viewerApp.deleteDocument(entry.id));
         }}

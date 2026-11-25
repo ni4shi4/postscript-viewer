@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { pdfDownloadFileName } from "../../../core/domain/pdf-download-file-name";
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import { selectedViewerDocument, type ViewerState } from "../../../core/state/viewer-state";
+import { useMessages } from "./i18n/messages-context";
 
 function triggerBrowserPdfDownload(pdf: Uint8Array, downloadName: string): void {
   const blob = new Blob([Uint8Array.from(pdf)], { type: "application/pdf" });
@@ -47,6 +48,7 @@ export function DocumentBar({
   state: ViewerState;
   hidden: boolean;
 }) {
+  const messages = useMessages();
   const fileName = selectedViewerDocument(state)?.fileName ?? "";
   const selectedDocumentId = state.selectedDocumentId;
 
@@ -76,13 +78,13 @@ export function DocumentBar({
         type="button"
         class="document-bar__button"
         data-testid="download-pdf"
-        aria-label={`${pdfDownloadFileName(fileName)} をダウンロード`}
+        aria-label={messages.downloadPdfLabel(pdfDownloadFileName(fileName))}
         onClick={onDownload}
       >
         <BarIcon>
           <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />
         </BarIcon>
-        ダウンロード
+        {messages.downloadButton}
       </button>
     </div>
   );

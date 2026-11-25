@@ -1,15 +1,8 @@
-import {
-  formattedByteLimit,
-  formattedConversionTimeLimit,
-  type ByteLimitKind,
-} from "../../../core/domain/limits";
+import { conversionTimeLimitInSeconds, formattedByteLimit } from "../../../core/domain/limits";
+import type { Messages } from "./i18n/messages";
 
-export function byteLimitParenthetical(kind: ByteLimitKind): string {
-  return `上限（${formattedByteLimit(kind)}）`;
-}
-
-export function conversionTimeLimitParenthetical(): string {
-  return `制限時間（${formattedConversionTimeLimit()}）`;
+export function formattedConversionTimeLimit(messages: Messages): string {
+  return messages.formatSeconds(conversionTimeLimitInSeconds());
 }
 
 export type AcceptedFileLimitItem = {
@@ -17,10 +10,10 @@ export type AcceptedFileLimitItem = {
   value: string;
 };
 
-export function acceptedFileLimitItems(): AcceptedFileLimitItem[] {
+export function acceptedFileLimitItems(messages: Messages): AcceptedFileLimitItem[] {
   return [
-    { label: "ファイルサイズ", value: formattedByteLimit("input") },
-    { label: "展開後のサイズ", value: formattedByteLimit("decompressed") },
-    { label: "変換の制限時間", value: formattedConversionTimeLimit() },
+    { label: messages.limitLabelInputSize, value: formattedByteLimit("input") },
+    { label: messages.limitLabelDecompressedSize, value: formattedByteLimit("decompressed") },
+    { label: messages.limitLabelConversionTime, value: formattedConversionTimeLimit(messages) },
   ];
 }

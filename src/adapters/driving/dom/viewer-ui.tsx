@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
-import type { ByteLimitKind } from "../../../core/domain/limits";
+import { formattedByteLimit } from "../../../core/domain/limits";
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import type { ViewerError, ViewerState } from "../../../core/state/viewer-state";
 import { selectedViewerDocument } from "../../../core/state/viewer-state";
-import { byteLimitParenthetical, conversionTimeLimitParenthetical } from "./limit-display-text";
+import { useMessages } from "./i18n/messages-context";
+import type { Messages } from "./i18n/messages";
+import { formattedConversionTimeLimit } from "./limit-display-text";
 
 const STATUS_PROGRESS_CLASS = "viewer-status--progress";
 const STATUS_ERROR_CLASS = "viewer-status--error";
-
-const CONVERTING_MESSAGE = "PostScript を PDF に変換しています…";
 
 const EMPTY_VIEWER_STATE: ViewerState = {
   documents: [],
@@ -36,31 +36,18 @@ export function queryViewerDom(): ViewerDom {
   return { fileInput, fileNameDisplay, pdfFrame, statusPanel };
 }
 
-function userMessageForNotGzipError(): string {
-  return "gzip 形式ではありません。.gz ファイルは gzip 圧縮された PostScript を選んでください";
-}
-
-function userMessageForConversionTimeout(): string {
-  return `変換が${conversionTimeLimitParenthetical()}を超えました`;
-}
-
-function userMessageForTooLargeLimit(limit: ByteLimitKind): string {
-  if (limit === "input") {
-    return `ファイルサイズが${byteLimitParenthetical(limit)}を超えています`;
-  }
-  return `展開後のサイズが${byteLimitParenthetical(limit)}を超えています`;
-}
-
-export function userMessageFromViewerError(error: ViewerError): string {
+export function userMessageFromViewerError(error: ViewerError, messages: Messages): string {
   switch (error.kind) {
     case "not-gzip":
-      return userMessageForNotGzipError();
+      return messages.notGzipError;
     case "too-large":
-      return userMessageForTooLargeLimit(error.limit);
+      return error.limit === "input"
+        ? messages.inputTooLarge(formattedByteLimit(error.limit))
+        : messages.decompressedTooLarge(formattedByteLimit(error.limit));
     case "timeout":
-      return userMessageForConversionTimeout();
+      return messages.conversionTimeout(formattedConversionTimeLimit(messages));
     case "conversion-failed":
-      return error.detail;
+      return messages.conversionFailed(error.detail);
   }
 }
 
@@ -85,7 +72,10 @@ type ViewerStatusPresentation = {
   error: boolean;
 };
 
-export function viewerStatusPresentation(state: ViewerState): ViewerStatusPresentation {
+export function viewerStatusPresentation(
+  state: ViewerState,
+  messages: Messages,
+): ViewerStatusPresentation {
   const viewerDocument = selectedViewerDocument(state);
   if (viewerDocument === undefined) {
     return { hidden: true, message: "", progress: false, error: false };
@@ -95,7 +85,7 @@ export function viewerStatusPresentation(state: ViewerState): ViewerStatusPresen
     case "converting":
       return {
         hidden: false,
-        message: CONVERTING_MESSAGE,
+        message: messages.convertingStatus,
         progress: true,
         error: false,
       };
@@ -104,7 +94,7 @@ export function viewerStatusPresentation(state: ViewerState): ViewerStatusPresen
     case "error":
       return {
         hidden: false,
-        message: userMessageFromViewerError(viewerDocument.status.error),
+        message: userMessageFromViewerError(viewerDocument.status.error, messages),
         progress: false,
         error: true,
       };
@@ -133,6 +123,7 @@ export function resetFileInputSelection(fileInput: HTMLInputElement): void {
 function logViewerErrorIfNeeded(
   state: ViewerState,
   lastLoggedErrorKey: { current: string | undefined },
+  messages: Messages,
 ): void {
   const viewerDocument = selectedViewerDocument(state);
   if (viewerDocument?.status.kind !== "error") {
@@ -140,7 +131,7 @@ function logViewerErrorIfNeeded(
     return;
   }
 
-  const message = userMessageFromViewerError(viewerDocument.status.error);
+  const message = userMessageFromViewerError(viewerDocument.status.error, messages);
   const errorKey = `${viewerDocument.id}:${message}`;
   if (lastLoggedErrorKey.current === errorKey) {
     return;
@@ -177,6 +168,7 @@ export function useViewerDomUi(
   app: ViewerApp | undefined,
   fileInputRef: { readonly current: HTMLInputElement | null },
 ): ViewerState {
+  const messages = useMessages();
   const [state, setState] = useState<ViewerState>(EMPTY_VIEWER_STATE);
   const lastLoggedErrorKey = useRef<string | undefined>(undefined);
 
@@ -190,13 +182,13 @@ export function useViewerDomUi(
     const keyHolder = { current: lastLoggedErrorKey.current };
     const syncState = (next: ViewerState): void => {
       setState(next);
-      logViewerErrorIfNeeded(next, keyHolder);
+      logViewerErrorIfNeeded(next, keyHolder, messages);
       lastLoggedErrorKey.current = keyHolder.current;
     };
 
     syncState(app.getState());
     return app.subscribe(syncState);
-  }, [app]);
+  }, [app, messages]);
 
   useEffect(() => {
     const fileInput = fileInputRef.current;
@@ -309,7 +301,8 @@ export function ViewerFileName({ state }: { state: ViewerState }) {
 }
 
 export function ViewerStatus({ state }: { state: ViewerState }) {
-  const presentation = viewerStatusPresentation(state);
+  const messages = useMessages();
+  const presentation = viewerStatusPresentation(state, messages);
 
   return (
     <p

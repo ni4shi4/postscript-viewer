@@ -6,6 +6,9 @@ export const E2E_PREVIEW_PORT = ports.viewerPort;
 /** Preview server port for security-headers E2E (Cloudflare `_headers` on preview). */
 export const E2E_SECURITY_PREVIEW_PORT = ports.securityPort;
 
+/** Placeholder site origin (RFC 2606) the E2E build injects for hreflang alternates. */
+export const E2E_SITE_ORIGIN = ports.siteOrigin;
+
 export const E2E_PREVIEW_SERVERS_READY = ports.readyMessage;
 
 /**

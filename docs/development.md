@@ -57,6 +57,8 @@ npm run format:check
 npm run build
 ```
 
+環境変数 `SITE_ORIGIN`（任意）: hreflang 用のサイトのオリジン。未設定の場合は出力しない。
+
 ### Playwright test(large)の実行
 
 1. （初回のみ）Chromium 用ブラウザを取得する

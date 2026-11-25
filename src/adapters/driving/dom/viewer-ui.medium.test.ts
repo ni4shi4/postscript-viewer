@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import type { ViewerError, ViewerState } from "../../../core/state/viewer-state";
+import type { Locale } from "./i18n/messages";
+import { messagesFor, MessagesContext } from "./i18n/messages-context";
 import { App } from "./static-shell";
 import { queryViewerDom } from "./viewer-ui";
 
@@ -19,13 +21,13 @@ type FakeViewerApp = ViewerApp & {
   getReadReadyPdfCalls(): readonly string[];
 };
 
-function mountViewerAppUi(app: FakeViewerApp): void {
+function mountViewerAppUi(app: FakeViewerApp, locale: Locale = "ja"): void {
   document.body.replaceChildren();
   const mount = document.createElement("div");
   mount.id = "mount-app";
   document.body.append(mount);
   act(() => {
-    render(h(App, { app }), mount);
+    render(h(MessagesContext.Provider, { value: messagesFor(locale) }, h(App, { app })), mount);
   });
 }
 
@@ -300,6 +302,21 @@ describe("viewer app UI", () => {
     expect(status.textContent).toContain("gzip");
   });
 
+  it("shows the not-gzip error in English when the locale is en", () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app, "en");
+
+    replaceViewerState(
+      app,
+      documentState("d1", "bad.ps.gz", { kind: "error", error: { kind: "not-gzip" } }),
+    );
+
+    const status = queryStatusPanel();
+    expect(status.hidden).toBe(false);
+    expect(status.textContent).toContain("Not in gzip format");
+    expect(status.textContent).not.toContain("gzip 形式");
+  });
+
   it("shows conversion error detail in the status panel", () => {
     const app = createFakeViewerApp();
     mountViewerAppUi(app);
@@ -315,6 +332,7 @@ describe("viewer app UI", () => {
 
     const status = queryStatusPanel();
     expect(status.hidden).toBe(false);
+    expect(status.textContent).toContain("PostScript を PDF に変換できませんでした");
     expect(status.textContent).toContain(detail);
   });
 
@@ -370,7 +388,9 @@ describe("viewer app UI", () => {
     const card = queryDropCard();
     expect(card.hidden).toBe(false);
     expect(card.contains(queryStatusPanel())).toBe(true);
-    expect(queryStatusPanel().textContent).toBe("failed");
+    expect(queryStatusPanel().textContent).toBe(
+      "PostScript を PDF に変換できませんでした（failed）",
+    );
     expect(queryFileNameDisplay().textContent).toBe("bad.ps");
   });
 

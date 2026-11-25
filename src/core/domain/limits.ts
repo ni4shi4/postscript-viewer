@@ -27,8 +27,8 @@ export function formattedByteLimit(kind: ByteLimitKind): string {
   return `${byteLimitInMebibytes(kind)} MiB`;
 }
 
-export function formattedConversionTimeLimit(): string {
-  return `${MAX_CONVERSION_DURATION_MS / SECOND_MS} 秒`;
+export function conversionTimeLimitInSeconds(): number {
+  return MAX_CONVERSION_DURATION_MS / SECOND_MS;
 }
 
 export function assertWithinByteLimit(size: number, limit: ByteLimitKind): void {

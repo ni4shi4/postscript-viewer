@@ -3,8 +3,10 @@
 import { h, render } from "preact";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { formattedByteLimit, formattedConversionTimeLimit } from "../../../core/domain/limits";
+import { formattedByteLimit } from "../../../core/domain/limits";
 import { FileLimitsNotice } from "./file-limits-notice";
+import { ja } from "./i18n/ja";
+import { formattedConversionTimeLimit } from "./limit-display-text";
 
 describe("FileLimitsNotice", () => {
   beforeEach(() => {
@@ -30,6 +32,6 @@ describe("FileLimitsNotice", () => {
     expect(notice?.textContent).toContain("展開後のサイズ");
     expect(notice?.textContent).toContain(formattedByteLimit("decompressed"));
     expect(notice?.textContent).toContain("変換の制限時間");
-    expect(notice?.textContent).toContain(formattedConversionTimeLimit());
+    expect(notice?.textContent).toContain(formattedConversionTimeLimit(ja));
   });
 });

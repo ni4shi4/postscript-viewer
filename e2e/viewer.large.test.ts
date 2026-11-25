@@ -18,6 +18,7 @@ import {
   startRecordingParentInput,
 } from "./support/parent-input-recorder";
 import { expectPdfFrameShowsBlobPdf, expectPdfFrameShowsBlobSrc } from "./support/expect-pdf-frame";
+import e2ePreviewPorts from "./e2e-preview-ports.json" with { type: "json" };
 import { MAX_PDF_HISTORY_ENTRIES } from "../src/core/domain/limits";
 import {
   activateHistoryEntryAndExpectCanvas,
@@ -582,4 +583,52 @@ test("delivers clicks and wheel input over the PDF to the frame instead of the p
   await expect
     .poll(() => page.evaluate(() => document.activeElement?.getAttribute("data-testid")))
     .toBe("pdf-frame");
+});
+
+const siteOrigin = e2ePreviewPorts.siteOrigin;
+const expectedAlternateLinks = [
+  { hreflang: "ja", href: `${siteOrigin}/` },
+  { hreflang: "en", href: `${siteOrigin}/en/` },
+  { hreflang: "x-default", href: `${siteOrigin}/en/` },
+] as const;
+
+async function readAlternateLinks(page: Page) {
+  return page.evaluate(() =>
+    Array.from(document.head.querySelectorAll('link[rel="alternate"][hreflang]')).map((link) => ({
+      hreflang: link.getAttribute("hreflang"),
+      href: link.getAttribute("href"),
+    })),
+  );
+}
+
+test("declares the Japanese page language, heading and hreflang alternates on /", async ({
+  page,
+}) => {
+  await expect(page.locator("html")).toHaveAttribute("lang", "ja");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("PostScript ビューア");
+  expect(await readAlternateLinks(page)).toEqual(expectedAlternateLinks);
+});
+
+test.describe("English page at /en/", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/en/");
+  });
+
+  test("declares the English page language, heading and hreflang alternates", async ({ page }) => {
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("PostScript Viewer");
+    expect(await readAlternateLinks(page)).toEqual(expectedAlternateLinks);
+  });
+
+  test("displays a PDF blob when a .ps file is selected", async ({ page }) => {
+    await convertPostScriptViaFilePicker(page, minimalPsPath);
+  });
+});
+
+test("navigates to /en/ from the English link in the footer of /", async ({ page }) => {
+  await page.getByRole("link", { name: "English" }).click();
+
+  await expect(page).toHaveURL(/\/en\/$/);
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("PostScript Viewer");
 });

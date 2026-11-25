@@ -1,5 +1,6 @@
 {
   "viewerPort": 4173,
   "securityPort": 4174,
+  "siteOrigin": "https://example.com",
   "readyMessage": "E2E preview servers ready"
 }
