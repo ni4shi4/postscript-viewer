@@ -69,6 +69,8 @@ export async function activateHistoryEntryAndExpectPdfFrame(
   fileName: string,
 ): Promise<void> {
   await selectButton.click();
+  // 選択の確定（aria-current）を待たないと、切り替え前の PDF の blob URL を読んでしまい、切り替え時に revoke されて fetch が失敗する
+  await expect(selectButton).toHaveAttribute("aria-current", "true");
   await expectSelectedFileInHistory(page, fileName);
   await expectPdfFrameShowsBlobPdf(page);
 }
@@ -79,6 +81,7 @@ export async function activateHistoryEntryAndExpectCanvas(
   fileName: string,
 ): Promise<void> {
   await selectButton.click();
+  await expect(selectButton).toHaveAttribute("aria-current", "true");
   await expectSelectedFileInHistory(page, fileName);
   await expectPdfCanvasShowsRenderedPdf(page);
 }
