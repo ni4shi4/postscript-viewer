@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import { selectedViewerDocument, type ViewerState } from "../../../core/state/viewer-state";
+import { DocumentBar } from "./document-bar";
 import { FileLimitsNotice } from "./file-limits-notice";
 import { AppFooter, type AppFooterProps } from "./footer-source-link";
 import { useCompactViewport } from "./compact-viewport";
@@ -304,8 +305,10 @@ export function App({ commitSha, app }: AppProps) {
           class="viewer-surface"
           data-testid="viewer-surface"
           data-dragging={dropTarget.dragging ? "true" : undefined}
+          data-document-bar={pdfShown ? "true" : undefined}
           {...dropTarget.handlers}
         >
+          <DocumentBar app={app} state={viewerState} hidden={!pdfShown} />
           <ViewerMain />
           <DropCard state={viewerState} onPickFile={openFilePicker} pickButtonRef={pickButtonRef} />
           {dropTarget.dragging ? <DropOverlay state={viewerState} /> : null}

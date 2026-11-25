@@ -2,7 +2,7 @@
 
 import { h, render } from "preact";
 import { act } from "preact/test-utils";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ViewerApp } from "../../../core/ports/viewer-app";
 import type { ViewerError, ViewerState } from "../../../core/state/viewer-state";
@@ -16,6 +16,7 @@ type OpenPostScriptCall = { fileName: string; data: Uint8Array };
 type FakeViewerApp = ViewerApp & {
   replaceState(state: ViewerState): void;
   getOpenPostScriptCalls(): readonly OpenPostScriptCall[];
+  getReadReadyPdfCalls(): readonly string[];
 };
 
 function mountViewerAppUi(app: FakeViewerApp): void {
@@ -40,6 +41,14 @@ function createFakeViewerApp(
   let state = initial;
   const listeners = new Set<(next: ViewerState) => void>();
   const openCalls: OpenPostScriptCall[] = [];
+  const readReadyPdfCalls: string[] = [];
+
+  const replaceState = (next: ViewerState): void => {
+    state = next;
+    for (const listener of listeners) {
+      listener(state);
+    }
+  };
 
   return {
     getState: () => state,
@@ -61,10 +70,20 @@ function createFakeViewerApp(
     },
     async restore() {},
     cancel() {},
-    closeDocument() {},
+    closeDocument() {
+      replaceState({ ...state, selectedDocumentId: undefined });
+    },
     async selectDocument() {},
     async deleteDocument() {},
     async clearHistory() {},
+    async readReadyPdf(id) {
+      readReadyPdfCalls.push(id);
+      const document = state.documents.find((candidate) => candidate.id === id);
+      return document === undefined
+        ? undefined
+        : { fileName: document.fileName, pdf: new Uint8Array([37, 80, 68, 70]) };
+    },
+    getReadReadyPdfCalls: () => readReadyPdfCalls,
     getOpenPostScriptCalls: () => openCalls,
   };
 }
@@ -569,5 +588,80 @@ describe("viewer app UI", () => {
       replaceViewerState(app, documentState("d1", "sample.ps", { kind: "converting" }));
       expect(heading?.hidden).toBe(true);
     });
+  });
+});
+
+function barVisible(): boolean {
+  const bar = document.querySelector<HTMLElement>('[data-testid="document-bar"]');
+  return bar !== null && !bar.hidden;
+}
+
+describe("document bar", () => {
+  beforeEach(() => {
+    document.body.replaceChildren();
+    URL.createObjectURL = vi.fn(() => "blob:fake");
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("is not shown while the drop card is shown", () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+    expect(barVisible()).toBe(false);
+
+    replaceViewerState(app, documentState("d1", "sample.ps", { kind: "converting" }));
+    expect(barVisible()).toBe(false);
+  });
+
+  it("shows the file name and a download button named after the PDF when a document is ready", () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+
+    replaceViewerState(app, documentState("d1", "with-text.ps.gz", { kind: "ready" }));
+
+    expect(barVisible()).toBe(true);
+    const name = document.querySelector<HTMLElement>('[data-testid="document-bar-file-name"]');
+    expect(name?.textContent).toBe("with-text.ps.gz");
+    expect(name?.title).toBe("with-text.ps.gz");
+    const button = document.querySelector<HTMLButtonElement>('[data-testid="download-pdf"]');
+    expect(button?.getAttribute("aria-label")).toBe("with-text.pdf をダウンロード");
+    expect(button?.textContent).toContain("ダウンロード");
+  });
+
+  it("downloads the selected document as a PDF when the button is pressed", async () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+    replaceViewerState(app, documentState("d1", "with-text.ps", { kind: "ready" }));
+
+    const downloads: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      downloads.push(this.download);
+    });
+
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('[data-testid="download-pdf"]')?.click();
+      await flushAsyncWork();
+    });
+
+    expect(app.getReadReadyPdfCalls()).toEqual(["d1"]);
+    expect(downloads).toEqual(["with-text.pdf"]);
+  });
+
+  it("disappears when the document is closed", () => {
+    const app = createFakeViewerApp();
+    mountViewerAppUi(app);
+    replaceViewerState(app, documentState("d1", "with-text.ps", { kind: "ready" }));
+    expect(barVisible()).toBe(true);
+
+    act(() => {
+      app.closeDocument();
+    });
+
+    expect(barVisible()).toBe(false);
   });
 });
