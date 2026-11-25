@@ -11,6 +11,12 @@ import {
   emulateBuiltInPdfViewer,
   emulateNoBuiltInPdfViewer,
 } from "./support/emulate-pdf-viewer-capability";
+import {
+  centerOf,
+  readRecordedParentInput,
+  settleFrames,
+  startRecordingParentInput,
+} from "./support/parent-input-recorder";
 import { expectPdfFrameShowsBlobPdf, expectPdfFrameShowsBlobSrc } from "./support/expect-pdf-frame";
 import { MAX_PDF_HISTORY_ENTRIES } from "../src/core/domain/limits";
 import {
@@ -557,4 +563,23 @@ test("returns to the drop card from convert-another and converts the next file",
   await expect(page.getByTestId("drop-card")).toBeHidden();
   await expect(page.getByTestId("history-item")).toHaveCount(2);
   await expectSelectedFileInHistory(page, path.basename(withTextPsPath));
+});
+
+test("delivers clicks and wheel input over the PDF to the frame instead of the page", async ({
+  page,
+}) => {
+  await convertPostScriptViaFilePicker(page, minimalPsPath);
+  const pdfFrame = page.getByTestId("pdf-frame");
+  await startRecordingParentInput(page);
+
+  const center = await centerOf(pdfFrame);
+  await page.mouse.click(center.x, center.y);
+  await page.mouse.wheel(0, 200);
+  // Absence of events cannot be polled for; wait for rendering frames so queued input is dispatched.
+  await settleFrames(page);
+
+  expect(await readRecordedParentInput(page)).toEqual([]);
+  await expect
+    .poll(() => page.evaluate(() => document.activeElement?.getAttribute("data-testid")))
+    .toBe("pdf-frame");
 });

@@ -897,6 +897,10 @@ body {
   align-items: center;
 }
 
+.pdf-canvas-container[hidden] {
+  display: none;
+}
+
 .pdf-canvas-container canvas {
   display: block;
   max-width: 100%;
